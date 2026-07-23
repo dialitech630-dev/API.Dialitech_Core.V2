@@ -28,7 +28,8 @@ public class UsersControllerTests : IClassFixture<CustomWebApplicationFactory>
         var dto = new CreateUserDto
         {
             Name = "Test User",
-            Email = $"test.{Guid.NewGuid()}@example.com"
+            Email = $"test.{Guid.NewGuid()}@example.com",
+            Age = 30
         };
 
         var response = await _client.PostAsJsonAsync("/api/users", dto);

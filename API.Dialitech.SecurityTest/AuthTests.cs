@@ -16,35 +16,51 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
     }
 
     [Fact]
-    public async Task GetWeatherForecast_NoToken_ShouldReturnUnauthorized()
+    public async Task GetSecuredEndpoint_NoToken_ShouldReturnUnauthorized()
     {
-        var response = await _client.GetAsync("/WeatherForecast");
+        var response = await _client.GetAsync("/api/auth/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
-    public async Task GetWeatherForecast_InvalidToken_ShouldReturnUnauthorized()
+    public async Task GetSecuredEndpoint_InvalidToken_ShouldReturnUnauthorized()
     {
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "invalid-token-value");
 
-        var response = await _client.GetAsync("/WeatherForecast");
+        var response = await _client.GetAsync("/api/auth/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
-    public async Task GetWeatherForecast_ValidToken_ShouldReturnOk()
+    public async Task GetSecuredEndpoint_ValidToken_ShouldReturnOk()
     {
         var token = await GetValidTokenAsync();
 
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync("/WeatherForecast");
+        var response = await _client.GetAsync("/api/auth/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task HealthDataEndpoint_NoToken_ShouldReturnUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/health-data/someuser");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task AlertsEndpoint_NoToken_ShouldReturnUnauthorized()
+    {
+        var response = await _client.GetAsync("/api/alerts/someuser");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
@@ -58,6 +74,9 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
         var response = await _client.GetAsync("/api/auth/me");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var content = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+        content.Should().NotBeNull();
+        content!.ContainsKey("userId").Should().BeTrue();
     }
 
     [Fact]
@@ -71,7 +90,7 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
     private async Task<string> GetValidTokenAsync()
     {
         var email = $"sec.{Guid.NewGuid()}@test.com";
-        var registerPayload = new { name = "Security Tester", email, password = "Test123!" };
+        var registerPayload = new { name = "Security Tester", email, password = "Test123!", age = 30 };
 
         var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", registerPayload);
         registerResponse.StatusCode.Should().Be(HttpStatusCode.Created);

@@ -80,24 +80,24 @@ public class UserServiceTests
     [Fact]
     public async Task CreateAsync_ShouldSendCreateUserCommand()
     {
-        var dto = new CreateUserDto { Name = "Charlie", Email = "charlie@test.com" };
+        var dto = new CreateUserDto { Name = "Charlie", Email = "charlie@test.com", Age = 25 };
 
         await _service.CreateAsync(dto);
 
         _mediatorMock.Verify(m => m.Send(
-            It.Is<CreateUserCommand>(c => c.Name == "Charlie" && c.Email == "charlie@test.com"),
+            It.Is<CreateUserCommand>(c => c.Name == "Charlie" && c.Email == "charlie@test.com" && c.Age == 25),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
     public async Task UpdateAsync_ShouldSendUpdateUserCommand()
     {
-        var dto = new UpdateUserDto { Name = "New", Email = "new@test.com" };
+        var dto = new UpdateUserDto { Name = "New", Email = "new@test.com", Age = 30 };
 
         await _service.UpdateAsync("1", dto);
 
         _mediatorMock.Verify(m => m.Send(
-            It.Is<UpdateUserCommand>(c => c.Id == "1" && c.Name == "New"),
+            It.Is<UpdateUserCommand>(c => c.Id == "1" && c.Name == "New" && c.Age == 30),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -122,12 +122,13 @@ public class UserServiceTests
         {
             Name = "Dave",
             Email = "dave@test.com",
-            Password = "secret"
+            Password = "secret",
+            Age = 30
         });
 
         result.Name.Should().Be("Dave");
         _mediatorMock.Verify(m => m.Send(
-            It.Is<RegisterUserCommand>(c => c.Name == "Dave" && c.Email == "dave@test.com"),
+            It.Is<RegisterUserCommand>(c => c.Name == "Dave" && c.Email == "dave@test.com" && c.Age == 30),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

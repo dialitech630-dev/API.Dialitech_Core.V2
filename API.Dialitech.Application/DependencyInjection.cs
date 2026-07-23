@@ -23,6 +23,8 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
         services.AddScoped<IUserService, UserService>();
+        services.AddScoped<IHealthDataService, HealthDataService>();
+        services.AddScoped<IAlertService, AlertService>();
 
         return services;
     }
