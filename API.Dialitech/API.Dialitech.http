@@ -1,0 +1,6 @@
+@API.Dialitech_HostAddress = http://localhost:5200
+
+GET {{API.Dialitech_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

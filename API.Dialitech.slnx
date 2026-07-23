@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="API.Dialitech.Application/API.Dialitech.Application.csproj" />
+  <Project Path="API.Dialitech.Domain/API.Dialitech.Domain.csproj" />
+  <Project Path="API.Dialitech.Infrastructure/API.Dialitech.Infrastructure.csproj" />
+  <Project Path="API.Dialitech/API.Dialitech.csproj" />
+  <Project Path="API.Dialitech.UnitTest/API.Dialitech.UnitTest.csproj" />
+  <Project Path="API.Dialitech.IntegrationTest/API.Dialitech.IntegrationTest.csproj" />
+  <Project Path="API.Dialitech.SecurityTest/API.Dialitech.SecurityTest.csproj" />
+</Solution>
