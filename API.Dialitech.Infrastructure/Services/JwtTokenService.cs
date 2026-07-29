@@ -1,13 +1,14 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using API.Dialitech.Application.Interfaces;
 using API.Dialitech.Domain.Entities;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
 namespace API.Dialitech.Infrastructure.Services;
 
-public class JwtTokenService
+public class JwtTokenService : ITokenService
 {
     private readonly JwtSettings _settings;
 
@@ -16,16 +17,17 @@ public class JwtTokenService
         _settings = settings.Value;
     }
 
-    public string GenerateToken(User user)
+    public string GenerateToken(Caregiver caregiver)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_settings.SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new[]
         {
-            new Claim(ClaimTypes.NameIdentifier, user.Id),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Name, user.Name)
+            new Claim(ClaimTypes.NameIdentifier, caregiver.Id),
+            new Claim(ClaimTypes.Email, caregiver.Email),
+            new Claim(ClaimTypes.Name, caregiver.Name),
+            new Claim("Plan", caregiver.Plan.ToString())
         };
 
         var token = new JwtSecurityToken(

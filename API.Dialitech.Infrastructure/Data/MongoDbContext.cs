@@ -12,13 +12,19 @@ public class MongoDbContext
 
     static MongoDbContext()
     {
-        BsonClassMap.RegisterClassMap<User>(cm =>
+        BsonClassMap.RegisterClassMap<Caregiver>(cm =>
         {
             cm.AutoMap();
             cm.IdMemberMap.SetIdGenerator(StringObjectIdGenerator.Instance);
         });
 
-        BsonClassMap.RegisterClassMap<HealthRecord>(cm =>
+        BsonClassMap.RegisterClassMap<Patient>(cm =>
+        {
+            cm.AutoMap();
+            cm.IdMemberMap.SetIdGenerator(StringObjectIdGenerator.Instance);
+        });
+
+        BsonClassMap.RegisterClassMap<Device>(cm =>
         {
             cm.AutoMap();
             cm.IdMemberMap.SetIdGenerator(StringObjectIdGenerator.Instance);
@@ -37,8 +43,9 @@ public class MongoDbContext
         _database = client.GetDatabase(settings.Value.DatabaseName);
     }
 
-    public IMongoCollection<User> Users => _database.GetCollection<User>("Users");
-    public IMongoCollection<HealthRecord> HealthRecords => _database.GetCollection<HealthRecord>("HealthRecords");
+    public IMongoCollection<Caregiver> Caregivers => _database.GetCollection<Caregiver>("Caregivers");
+    public IMongoCollection<Patient> Patients => _database.GetCollection<Patient>("Patients");
+    public IMongoCollection<Device> Devices => _database.GetCollection<Device>("Devices");
     public IMongoCollection<Alert> Alerts => _database.GetCollection<Alert>("Alerts");
 }
 

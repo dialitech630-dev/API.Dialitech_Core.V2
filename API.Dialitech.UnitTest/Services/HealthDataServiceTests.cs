@@ -1,137 +1,113 @@
-using API.Dialitech.Application.Commands.HealthData.CreateHealthData;
 using API.Dialitech.Application.DTOs;
-using API.Dialitech.Application.Interfaces;
-using API.Dialitech.Application.Queries.HealthData.GetByDateRange;
-using API.Dialitech.Application.Queries.HealthData.GetByUser;
-using API.Dialitech.Application.Queries.HealthData.GetLatest;
 using API.Dialitech.Application.Services;
+using API.Dialitech.Domain.Entities;
+using API.Dialitech.Domain.Interfaces;
 using FluentAssertions;
-using MediatR;
 using Moq;
 
 namespace API.Dialitech.UnitTest.Services;
 
 public class HealthDataServiceTests
 {
-    private readonly Mock<IMediator> _mediatorMock;
-    private readonly IHealthDataService _service;
+    private readonly Mock<IPatientRepository> _patientRepoMock;
+    private readonly Mock<IAlertRepository> _alertRepoMock;
+    private readonly HealthDataService _service;
 
     public HealthDataServiceTests()
     {
-        _mediatorMock = new Mock<IMediator>();
-        _service = new HealthDataService(_mediatorMock.Object);
+        _patientRepoMock = new Mock<IPatientRepository>();
+        _alertRepoMock = new Mock<IAlertRepository>();
+        _service = new HealthDataService(_patientRepoMock.Object, _alertRepoMock.Object);
     }
 
     [Fact]
-    public async Task CreateAsync_ShouldSendCreateHealthDataCommand()
+    public async Task ProcessBatch_NormalValues_NoAlerts()
     {
-        var dto = new CreateHealthDataDto
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
+
+        var request = new BatchRequest
         {
-            UserId = "user1",
-            HeartRate = 80,
-            SpO2 = 97.5,
-            ActivityLevel = 50,
-            Timestamp = DateTime.UtcNow.AddMinutes(-5)
-        };
-        var expected = new HealthDataDto { Id = "abc123", UserId = "user1", HeartRate = 80, SpO2 = 97.5, ActivityLevel = 50 };
-
-        _mediatorMock.Setup(m => m.Send(It.IsAny<CreateHealthDataCommand>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(expected);
-
-        var result = await _service.CreateAsync(dto);
-
-        result.Should().NotBeNull();
-        result.HeartRate.Should().Be(80);
-        _mediatorMock.Verify(m => m.Send(
-            It.Is<CreateHealthDataCommand>(c => c.UserId == "user1" && c.HeartRate == 80),
-            It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetByUserIdAsync_ShouldReturnRecords()
-    {
-        var records = new List<HealthDataDto>
-        {
-            new() { Id = "1", UserId = "user1", HeartRate = 75, SpO2 = 98, ActivityLevel = 40 },
-            new() { Id = "2", UserId = "user1", HeartRate = 80, SpO2 = 97, ActivityLevel = 55 }
+            PatientCode = "CODE1",
+            Data =
+            [
+                new BatchDataPoint { HeartRate = 75, Oxygen = 98, Activity = 50, Timestamp = DateTime.UtcNow }
+            ]
         };
 
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetHealthDataByUserQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(records);
+        var result = await _service.ProcessBatchAsync(request);
 
-        var result = await _service.GetByUserIdAsync("user1");
-
-        result.Should().HaveCount(2);
+        result.Status.Should().Be("processed");
+        result.AlertsTriggered.Should().Be(0);
+        _alertRepoMock.Verify(r => r.CreateAsync(It.IsAny<Alert>()), Times.Never);
     }
 
     [Fact]
-    public async Task GetByUserIdAsync_NoRecords_ShouldReturnEmpty()
+    public async Task ProcessBatch_HighHeartRate_TriggersAlert()
     {
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetHealthDataByUserQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
 
-        var result = await _service.GetByUserIdAsync("nonexistent");
-
-        result.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task GetLatestAsync_ExistingUser_ShouldReturnLatestRecord()
-    {
-        var record = new HealthDataDto { Id = "1", UserId = "user1", HeartRate = 72, SpO2 = 98, ActivityLevel = 30 };
-
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetLatestHealthDataQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(record);
-
-        var result = await _service.GetLatestAsync("user1");
-
-        result.Should().NotBeNull();
-        result!.HeartRate.Should().Be(72);
-    }
-
-    [Fact]
-    public async Task GetLatestAsync_NoRecords_ShouldReturnNull()
-    {
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetLatestHealthDataQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((HealthDataDto?)null);
-
-        var result = await _service.GetLatestAsync("nonexistent");
-
-        result.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task GetByDateRangeAsync_ShouldSendQueryWithDates()
-    {
-        var start = DateTime.UtcNow.AddDays(-7);
-        var end = DateTime.UtcNow;
-        var records = new List<HealthDataDto>
+        var request = new BatchRequest
         {
-            new() { Id = "1", UserId = "user1", HeartRate = 78, SpO2 = 96, ActivityLevel = 45 }
+            PatientCode = "CODE1",
+            Data =
+            [
+                new BatchDataPoint { HeartRate = 130, Oxygen = 97, Activity = 80, Timestamp = DateTime.UtcNow }
+            ]
         };
 
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetHealthDataByDateRangeQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(records);
+        var result = await _service.ProcessBatchAsync(request);
 
-        var result = await _service.GetByDateRangeAsync("user1", start, end);
-
-        result.Should().HaveCount(1);
-        _mediatorMock.Verify(m => m.Send(
-            It.Is<GetHealthDataByDateRangeQuery>(q => q.UserId == "user1" && q.Start == start && q.End == end),
-            It.IsAny<CancellationToken>()), Times.Once);
+        result.AlertsTriggered.Should().Be(1);
+        _alertRepoMock.Verify(r => r.CreateAsync(It.IsAny<Alert>()), Times.Once);
     }
 
     [Fact]
-    public async Task GetByDateRangeAsync_NoDates_ShouldSendNullStartAndEnd()
+    public async Task ProcessBatch_LowOxygen_TriggersAlert()
     {
-        _mediatorMock.Setup(m => m.Send(It.IsAny<GetHealthDataByDateRangeQuery>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync([]);
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
 
-        var result = await _service.GetByDateRangeAsync("user1", null, null);
+        var request = new BatchRequest
+        {
+            PatientCode = "CODE1",
+            Data =
+            [
+                new BatchDataPoint { HeartRate = 72, Oxygen = 85, Activity = 30, Timestamp = DateTime.UtcNow }
+            ]
+        };
 
-        result.Should().BeEmpty();
-        _mediatorMock.Verify(m => m.Send(
-            It.Is<GetHealthDataByDateRangeQuery>(q => q.Start == null && q.End == null),
-            It.IsAny<CancellationToken>()), Times.Once);
+        var result = await _service.ProcessBatchAsync(request);
+
+        result.AlertsTriggered.Should().Be(1);
+        _alertRepoMock.Verify(r => r.CreateAsync(It.IsAny<Alert>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_MultipleReadings_SavesLastState()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
+
+        var now = DateTime.UtcNow;
+        var request = new BatchRequest
+        {
+            PatientCode = "CODE1",
+            Data =
+            [
+                new BatchDataPoint { HeartRate = 70, Oxygen = 98, Activity = 20, Timestamp = now.AddSeconds(-10) },
+                new BatchDataPoint { HeartRate = 72, Oxygen = 97, Activity = 25, Timestamp = now.AddSeconds(-5) },
+                new BatchDataPoint { HeartRate = 75, Oxygen = 96, Activity = 30, Timestamp = now }
+            ]
+        };
+
+        var result = await _service.ProcessBatchAsync(request);
+
+        result.Status.Should().Be("processed");
+        _patientRepoMock.Verify(r => r.UpdateAsync(It.Is<Patient>(p =>
+            p.LastHeartRate == 75 &&
+            p.LastOxygen == 96 &&
+            p.LastActivity == 30)), Times.Once);
     }
 }

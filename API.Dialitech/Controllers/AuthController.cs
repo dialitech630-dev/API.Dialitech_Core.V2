@@ -1,65 +1,52 @@
 using API.Dialitech.Application.DTOs;
 using API.Dialitech.Application.Interfaces;
-using API.Dialitech.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Dialitech.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/auth")]
 public class AuthController : ControllerBase
 {
-    private readonly IUserService _userService;
-    private readonly JwtTokenService _jwtTokenService;
+    private readonly IAuthService _authService;
 
-    public AuthController(IUserService userService, JwtTokenService jwtTokenService)
+    public AuthController(IAuthService authService)
     {
-        _userService = userService;
-        _jwtTokenService = jwtTokenService;
+        _authService = authService;
     }
 
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
-        var user = await _userService.RegisterAsync(request);
-        var token = _jwtTokenService.GenerateToken(
-            new Domain.Entities.User
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email
-            });
-
-        return CreatedAtAction(null, new AuthResponse { Token = token, User = user });
+        var response = await _authService.RegisterAsync(request);
+        return CreatedAtAction(null, response);
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _userService.LoginAsync(request);
-        if (user is null)
+        var response = await _authService.LoginAsync(request);
+        if (response is null)
             return Unauthorized("Invalid email or password");
 
-        var token = _jwtTokenService.GenerateToken(
-            new Domain.Entities.User
-            {
-                Id = user.Id,
-                Name = user.Name,
-                Email = user.Email
-            });
-
-        return Ok(new AuthResponse { Token = token, User = user });
+        return Ok(response);
     }
 
     [HttpGet("me")]
     [Authorize]
-    public IActionResult Me()
+    public async Task<IActionResult> Me()
     {
-        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-        var email = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-        var name = User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value;
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (caregiverId is null)
+            return Unauthorized();
 
-        return Ok(new { userId, email, name });
+        var caregiver = await _authService.GetByIdAsync(caregiverId);
+        if (caregiver is null)
+            return NotFound();
+
+        return Ok(caregiver);
     }
 }

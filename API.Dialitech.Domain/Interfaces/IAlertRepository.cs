@@ -4,6 +4,8 @@ namespace API.Dialitech.Domain.Interfaces;
 
 public interface IAlertRepository
 {
-    Task<IEnumerable<Alert>> GetByUserIdAsync(string userId);
+    Task<IEnumerable<Alert>> GetByCaregiverIdAsync(string caregiverId);
+    Task<IEnumerable<Alert>> GetByPatientIdAsync(string patientId);
     Task CreateAsync(Alert alert);
+    Task DeleteAsync(string id);
 }

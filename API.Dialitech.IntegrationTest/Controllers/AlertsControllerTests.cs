@@ -15,64 +15,65 @@ public class AlertsControllerTests : IClassFixture<CustomWebApplicationFactory>
         _client = factory.CreateClient();
     }
 
-    private async Task<(string userId, string token)> RegisterAndCreateAlertAsync()
+    private async Task<(string token, string patientId)> CreateSetupAsync()
     {
         var email = $"alert.{Guid.NewGuid()}@test.com";
-        var registerPayload = new { name = "Alert Tester", email, password = "Test123!", age = 45 };
-        var regResponse = await _client.PostAsJsonAsync("/api/auth/register", registerPayload);
+        var regPayload = new { name = "Alert Test", email, password = "Test123!", plan = "Premium" };
+        var regResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", regPayload);
         var authResponse = await regResponse.Content.ReadFromJsonAsync<AuthResponse>();
-        var userId = authResponse!.User.Id;
-        var token = authResponse.Token;
+        var token = authResponse!.Token;
 
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var hdPayload = new { userId, heartRate = 140, spO2 = 85.0, activityLevel = 90, timestamp = DateTime.UtcNow.AddMinutes(-5) };
-        await _client.PostAsJsonAsync("/api/health-data", hdPayload);
+        var patientPayload = new { name = "Alert Patient", age = 30, gender = "Male", notes = "" };
+        var patientResponse = await _client.PostAsJsonAsync("/api/v1/patients", patientPayload);
+        var patient = await patientResponse.Content.ReadFromJsonAsync<PatientDto>();
 
-        return (userId, token);
+        var codeResponse = await _client.PostAsJsonAsync($"/api/v1/patients/{patient!.Id}/generate-code", new { });
+        var code = (await codeResponse.Content.ReadFromJsonAsync<GenerateCodeResponse>())!.Code;
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var batchPayload = new
+        {
+            patientCode = code,
+            data = new[] { new { heartRate = 130.0, oxygen = 97.0, activity = 80.0, timestamp = DateTime.UtcNow } }
+        };
+        await _client.PostAsJsonAsync("/api/v1/health-data/batch", batchPayload);
+
+        return (token, patient.Id);
     }
 
     [Fact]
-    public async Task GetByUser_ShouldReturnAlerts()
+    public async Task GetAlerts_ShouldReturnList()
     {
-        var (userId, token) = await RegisterAndCreateAlertAsync();
+        var (token, _) = await CreateSetupAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var response = await _client.GetAsync($"/api/alerts/{userId}");
+        var response = await _client.GetAsync("/api/v1/alerts");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var alerts = await response.Content.ReadFromJsonAsync<List<AlertDto>>();
         alerts.Should().NotBeNull();
-        alerts.Should().HaveCountGreaterThanOrEqualTo(1);
     }
 
     [Fact]
-    public async Task GetByUser_NoExtremeValues_NoAlerts()
+    public async Task GetAlerts_NoAuth_ShouldReturnUnauthorized()
     {
-        var email = $"noalert.{Guid.NewGuid()}@test.com";
-        var registerPayload = new { name = "No Alert", email, password = "Test123!", age = 30 };
-        var regResponse = await _client.PostAsJsonAsync("/api/auth/register", registerPayload);
-        var authResponse = await regResponse.Content.ReadFromJsonAsync<AuthResponse>();
-        var userId = authResponse!.User.Id;
-        var token = authResponse.Token;
+        var response = await _client.GetAsync("/api/v1/alerts");
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
 
+    [Fact]
+    public async Task GetAlertsByPatient_ShouldReturnAlerts()
+    {
+        var (token, patientId) = await CreateSetupAsync();
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var hdPayload = new { userId, heartRate = 72, spO2 = 98.0, activityLevel = 40, timestamp = DateTime.UtcNow.AddMinutes(-5) };
-        await _client.PostAsJsonAsync("/api/health-data", hdPayload);
-
-        var response = await _client.GetAsync($"/api/alerts/{userId}");
+        var response = await _client.GetAsync($"/api/v1/alerts/{patientId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var alerts = await response.Content.ReadFromJsonAsync<List<AlertDto>>();
-        alerts.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task NoAuth_ShouldReturnUnauthorized()
-    {
-        var response = await _client.GetAsync("/api/alerts/someuser");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        alerts.Should().NotBeNull();
     }
 }

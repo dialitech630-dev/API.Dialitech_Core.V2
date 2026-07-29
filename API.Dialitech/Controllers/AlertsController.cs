@@ -1,30 +1,54 @@
-using API.Dialitech.Application.Queries.Alerts.GetAlertsByUser;
-using MediatR;
+using API.Dialitech.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Dialitech.Controllers;
 
 [ApiController]
-[Route("api/alerts")]
+[Route("api/v1/alerts")]
 [Authorize]
 public class AlertsController : ControllerBase
 {
-    private readonly ISender _sender;
+    private readonly IAlertService _alertService;
 
-    public AlertsController(ISender sender)
+    public AlertsController(IAlertService alertService)
     {
-        _sender = sender;
+        _alertService = alertService;
     }
 
-    [HttpGet("{userId}")]
-    public async Task<IActionResult> GetByUser(string userId)
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
     {
-        if (string.IsNullOrWhiteSpace(userId) || userId.Contains('$'))
-            return BadRequest("Invalid userId");
+        var caregiverId = GetCaregiverId();
+        var alerts = await _alertService.GetByCaregiverAsync(caregiverId);
+        return Ok(alerts);
+    }
 
-        var query = new GetAlertsByUserQuery(userId);
-        var result = await _sender.Send(query);
-        return Ok(result);
+    [HttpGet("{patientId}")]
+    public async Task<IActionResult> GetByPatient(string patientId)
+    {
+        if (string.IsNullOrWhiteSpace(patientId) || patientId.Contains('$'))
+            return BadRequest("Invalid patient id");
+
+        var caregiverId = GetCaregiverId();
+        var alerts = await _alertService.GetByPatientAsync(patientId, caregiverId);
+        return Ok(alerts);
+    }
+
+    [HttpDelete("{alertId}")]
+    public async Task<IActionResult> Delete(string alertId)
+    {
+        if (string.IsNullOrWhiteSpace(alertId) || alertId.Contains('$'))
+            return BadRequest("Invalid alert id");
+
+        var caregiverId = GetCaregiverId();
+        await _alertService.DeleteAsync(alertId, caregiverId);
+        return NoContent();
+    }
+
+    private string GetCaregiverId()
+    {
+        return User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException();
     }
 }

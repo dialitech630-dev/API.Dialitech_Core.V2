@@ -1,9 +1,12 @@
 using System.Text;
 using API.Dialitech.Application;
+using API.Dialitech.HealthChecks;
 using API.Dialitech.Infrastructure;
 using API.Dialitech.Infrastructure.Services;
 using API.Dialitech.Middleware;
+using API.Dialitech.OpenApi;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
@@ -15,14 +18,22 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration));
 
+var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JwtSettings not configured");
+
+if (string.IsNullOrEmpty(jwtSettings.SecretKey))
+    throw new InvalidOperationException("JwtSettings:SecretKey is not configured.");
+
+var mongoConnectionString = builder.Configuration["MongoDbSettings:ConnectionString"];
+if (string.IsNullOrEmpty(mongoConnectionString))
+    throw new InvalidOperationException("MongoDbSettings:ConnectionString is not configured.");
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddSingleton<IOpenApiDocumentTransformer, BearerSecuritySchemeTransformer>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplicationServices();
-
-var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
-    ?? throw new InvalidOperationException("JwtSettings not configured");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -49,11 +60,46 @@ builder.Services.AddRateLimiter(options =>
         cfg.QueueLimit = 5;
     });
 
+    options.AddFixedWindowLimiter("login", cfg =>
+    {
+        cfg.PermitLimit = 5;
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter("batch", cfg =>
+    {
+        cfg.PermitLimit = 30;
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 10;
+    });
+
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecific", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+builder.Services.AddHealthChecks()
+    .AddCheck<MongoHealthCheck>("mongodb");
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 10 * 1024 * 1024;
 });
 
 var app = builder.Build();
 
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionHandler>();
 
 app.Use(async (context, next) =>
@@ -96,6 +142,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseSerilogRequestLogging();
 
+app.UseCors("AllowSpecific");
+
 if (!app.Environment.IsDevelopment() || app.Configuration["ASPNETCORE_HTTPS_PORTS"] is not null)
 {
     app.UseHttpsRedirection();
@@ -103,7 +151,11 @@ if (!app.Environment.IsDevelopment() || app.Configuration["ASPNETCORE_HTTPS_PORT
 
 app.UseRateLimiter();
 
+app.MapHealthChecks("/health");
+
 app.UseAuthentication();
+
+app.UseMiddleware<AuditLogMiddleware>();
 
 app.UseAuthorization();
 

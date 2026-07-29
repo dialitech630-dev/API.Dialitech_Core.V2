@@ -5,7 +5,7 @@ public class RegisterRequest
     public string Name { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public int Age { get; set; }
+    public string Plan { get; set; } = "Standard";
 }
 
 public class LoginRequest
@@ -17,5 +17,13 @@ public class LoginRequest
 public class AuthResponse
 {
     public string Token { get; set; } = string.Empty;
-    public UserDto User { get; set; } = null!;
+    public CaregiverDto Caregiver { get; set; } = null!;
+}
+
+public class CaregiverDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Plan { get; set; } = string.Empty;
 }

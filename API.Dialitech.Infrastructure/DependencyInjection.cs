@@ -1,3 +1,4 @@
+using API.Dialitech.Application.Interfaces;
 using API.Dialitech.Domain.Interfaces;
 using API.Dialitech.Infrastructure.Data;
 using API.Dialitech.Infrastructure.Data.Repositories;
@@ -15,11 +16,12 @@ public static class DependencyInjection
         services.Configure<JwtSettings>(configuration.GetSection("JwtSettings"));
 
         services.AddSingleton<MongoDbContext>();
-        services.AddSingleton<JwtTokenService>();
+        services.AddSingleton<ITokenService, JwtTokenService>();
 
         services.AddScoped<IPasswordHasher, PasswordHasher>();
-        services.AddScoped<IUserRepository, UserRepository>();
-        services.AddScoped<IHealthRecordRepository, HealthRecordRepository>();
+        services.AddScoped<ICaregiverRepository, CaregiverRepository>();
+        services.AddScoped<IPatientRepository, PatientRepository>();
+        services.AddScoped<IDeviceRepository, DeviceRepository>();
         services.AddScoped<IAlertRepository, AlertRepository>();
 
         return services;

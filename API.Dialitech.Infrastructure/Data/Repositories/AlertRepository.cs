@@ -13,17 +13,39 @@ public class AlertRepository : IAlertRepository
         _context = context;
     }
 
-    public async Task<IEnumerable<Alert>> GetByUserIdAsync(string userId)
+    public async Task<IEnumerable<Alert>> GetByCaregiverIdAsync(string caregiverId)
     {
-        if (string.IsNullOrWhiteSpace(userId) || userId.Contains('$'))
+        if (string.IsNullOrWhiteSpace(caregiverId) || caregiverId.Contains('$'))
             return Enumerable.Empty<Alert>();
 
-        var filter = Builders<Alert>.Filter.Eq(a => a.UserId, userId);
-        return await _context.Alerts.Find(filter).ToListAsync();
+        var filter = Builders<Alert>.Filter.Eq(a => a.CaregiverId, caregiverId);
+        return await _context.Alerts.Find(filter)
+            .SortByDescending(a => a.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Alert>> GetByPatientIdAsync(string patientId)
+    {
+        if (string.IsNullOrWhiteSpace(patientId) || patientId.Contains('$'))
+            return Enumerable.Empty<Alert>();
+
+        var filter = Builders<Alert>.Filter.Eq(a => a.PatientId, patientId);
+        return await _context.Alerts.Find(filter)
+            .SortByDescending(a => a.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task CreateAsync(Alert alert)
     {
         await _context.Alerts.InsertOneAsync(alert);
+    }
+
+    public async Task DeleteAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Contains('$'))
+            return;
+
+        var filter = Builders<Alert>.Filter.Eq(a => a.Id, id);
+        await _context.Alerts.DeleteOneAsync(filter);
     }
 }

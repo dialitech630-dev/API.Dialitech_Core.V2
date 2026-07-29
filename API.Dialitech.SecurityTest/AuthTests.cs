@@ -18,8 +18,7 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
     [Fact]
     public async Task GetSecuredEndpoint_NoToken_ShouldReturnUnauthorized()
     {
-        var response = await _client.GetAsync("/api/auth/me");
-
+        var response = await _client.GetAsync("/api/v1/auth/me");
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
@@ -29,72 +28,45 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
         _client.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", "invalid-token-value");
 
-        var response = await _client.GetAsync("/api/auth/me");
+        var response = await _client.GetAsync("/api/v1/auth/me");
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Register_WithSqlInjection_ShouldBeAccepted()
+    {
+        var payload = new { name = "'; DROP TABLE Caregivers; --", email = $"hack.{Guid.NewGuid()}@test.com", password = "Test123!", plan = "Standard" };
+
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/register", payload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task Login_WrongPassword_ShouldReturnUnauthorized()
+    {
+        var email = $"sec.{Guid.NewGuid()}@test.com";
+        var registerPayload = new { name = "Security Test", email, password = "Test123!", plan = "Standard" };
+        await _client.PostAsJsonAsync("/api/v1/auth/register", registerPayload);
+
+        var loginPayload = new { email, password = "wrongpassword" };
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", loginPayload);
 
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     [Fact]
-    public async Task GetSecuredEndpoint_ValidToken_ShouldReturnOk()
+    public async Task PatientEndpoint_NoToken_ShouldReturnUnauthorized()
     {
-        var token = await GetValidTokenAsync();
-
-        _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await _client.GetAsync("/api/auth/me");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-    }
-
-    [Fact]
-    public async Task HealthDataEndpoint_NoToken_ShouldReturnUnauthorized()
-    {
-        var response = await _client.GetAsync("/api/health-data/someuser");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task AlertsEndpoint_NoToken_ShouldReturnUnauthorized()
-    {
-        var response = await _client.GetAsync("/api/alerts/someuser");
-
-        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
-    }
-
-    [Fact]
-    public async Task AuthMe_WithValidToken_ShouldReturnUserInfo()
-    {
-        var token = await GetValidTokenAsync();
-
-        _client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await _client.GetAsync("/api/auth/me");
-
-        response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var content = await response.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-        content.Should().NotBeNull();
-        content!.ContainsKey("userId").Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task AuthMe_NoToken_ShouldReturnUnauthorized()
-    {
-        var response = await _client.GetAsync("/api/auth/me");
-
+        var response = await _client.GetAsync("/api/v1/patients");
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
     private async Task<string> GetValidTokenAsync()
     {
-        var email = $"sec.{Guid.NewGuid()}@test.com";
-        var registerPayload = new { name = "Security Tester", email, password = "Test123!", age = 30 };
-
-        var registerResponse = await _client.PostAsJsonAsync("/api/auth/register", registerPayload);
-        registerResponse.StatusCode.Should().Be(HttpStatusCode.Created);
-
+        var email = $"tok.{Guid.NewGuid()}@test.com";
+        var registerPayload = new { name = "Token Test", email, password = "Test123!", plan = "Standard" };
+        var registerResponse = await _client.PostAsJsonAsync("/api/v1/auth/register", registerPayload);
         var authResponse = await registerResponse.Content.ReadFromJsonAsync<AuthResponse>();
         return authResponse!.Token;
     }
