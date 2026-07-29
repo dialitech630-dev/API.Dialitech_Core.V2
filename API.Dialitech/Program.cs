@@ -79,11 +79,15 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
+var corsOrigins = builder.Configuration["Cors:Origins"] ?? "http://localhost:3000";
+var allowedOrigins = corsOrigins
+    .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecific", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        policy.WithOrigins(allowedOrigins)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -91,6 +95,10 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddHealthChecks()
     .AddCheck<MongoHealthCheck>("mongodb");
+
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrEmpty(port))
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 builder.WebHost.ConfigureKestrel(options =>
 {

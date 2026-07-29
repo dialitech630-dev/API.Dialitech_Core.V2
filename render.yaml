@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: api-dialitech
+    runtime: image
+    dockerfilePath: API.Dialitech/Dockerfile
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: MongoDbSettings__ConnectionString
+        sync: false
+      - key: MongoDbSettings__DatabaseName
+        value: DialitechDB
+      - key: JwtSettings__SecretKey
+        sync: false
+      - key: JwtSettings__Issuer
+        value: API.Dialitech
+      - key: JwtSettings__Audience
+        value: API.Dialitech
+      - key: JwtSettings__ExpirationInMinutes
+        value: "60"
+      - key: Cors__Origins
+        value: ""
