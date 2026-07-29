@@ -137,7 +137,7 @@ app.Use(async (context, next) =>
     await next();
 });
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("OpenApi:Enabled"))
 {
     app.MapOpenApi();
     app.MapScalarApiReference(options =>
