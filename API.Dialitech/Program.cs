@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Threading.RateLimiting;
@@ -29,7 +30,21 @@ if (string.IsNullOrEmpty(mongoConnectionString))
     throw new InvalidOperationException("MongoDbSettings:ConnectionString is not configured.");
 
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, ct) =>
+    {
+        document.Servers =
+        [
+            new OpenApiServer
+            {
+                Url = "https://api-dialitech-core-v2.onrender.com",
+                Description = "Production"
+            }
+        ];
+        return Task.CompletedTask;
+    });
+});
 builder.Services.AddSingleton<IOpenApiDocumentTransformer, BearerSecuritySchemeTransformer>();
 
 builder.Services.AddInfrastructure(builder.Configuration);
