@@ -76,6 +76,28 @@ public class HealthDataControllerTests : IClassFixture<CustomWebApplicationFacto
     }
 
     [Fact]
+    public async Task GetPatientInfo_WithValidCode_ReturnsPatientData()
+    {
+        var code = await GetPatientCodeAsync();
+
+        var response = await _client.GetAsync($"/api/v1/health-data/patient-info/{code}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<PatientInfoResponse>();
+        result.Should().NotBeNull();
+        result!.PatientCode.Should().Be(code);
+        result.Name.Should().Be("HD Patient");
+    }
+
+    [Fact]
+    public async Task GetPatientInfo_WithInvalidCode_ReturnsNotFound()
+    {
+        var response = await _client.GetAsync("/api/v1/health-data/patient-info/INVALID");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task PostBatch_TriggersAlert_OnHighHR()
     {
         var code = await GetPatientCodeAsync();

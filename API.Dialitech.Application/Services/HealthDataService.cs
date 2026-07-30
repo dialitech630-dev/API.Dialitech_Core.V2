@@ -67,6 +67,23 @@ public class HealthDataService : IHealthDataService
         };
     }
 
+    public async Task<PatientInfoResponse> GetPatientInfoAsync(string patientCode)
+    {
+        var patient = await _patientRepo.GetByCodeAsync(patientCode)
+            ?? throw new NotFoundException("Patient", patientCode);
+
+        return new PatientInfoResponse
+        {
+            PatientCode = patient.Code ?? patientCode,
+            Name = patient.Name,
+            DeviceSerialNumber = patient.DeviceSerialNumber,
+            LastHeartRate = patient.LastHeartRate,
+            LastOxygen = patient.LastOxygen,
+            LastActivity = patient.LastActivity,
+            LastReadingAt = patient.LastReadingAt
+        };
+    }
+
     private static Alert CreateAlert(Patient patient, string type, string message, int severity)
     {
         return new Alert

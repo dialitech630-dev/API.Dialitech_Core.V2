@@ -19,3 +19,14 @@ public class BatchResponse
     public string Status { get; set; } = "processed";
     public int AlertsTriggered { get; set; }
 }
+
+public class PatientInfoResponse
+{
+    public string PatientCode { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? DeviceSerialNumber { get; set; }
+    public double? LastHeartRate { get; set; }
+    public double? LastOxygen { get; set; }
+    public double? LastActivity { get; set; }
+    public DateTime? LastReadingAt { get; set; }
+}

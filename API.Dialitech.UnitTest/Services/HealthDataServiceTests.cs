@@ -85,6 +85,42 @@ public class HealthDataServiceTests
     }
 
     [Fact]
+    public async Task GetPatientInfo_ExistingPatient_ReturnsInfo()
+    {
+        var patient = new Patient
+        {
+            Id = "p1",
+            Code = "CODE1",
+            Name = "Test Patient",
+            DeviceSerialNumber = "SN12345",
+            LastHeartRate = 75,
+            LastOxygen = 98,
+            LastActivity = 50,
+            LastReadingAt = DateTime.UtcNow
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
+
+        var result = await _service.GetPatientInfoAsync("CODE1");
+
+        result.Should().NotBeNull();
+        result.PatientCode.Should().Be("CODE1");
+        result.Name.Should().Be("Test Patient");
+        result.DeviceSerialNumber.Should().Be("SN12345");
+        result.LastHeartRate.Should().Be(75);
+        result.LastOxygen.Should().Be(98);
+        result.LastActivity.Should().Be(50);
+    }
+
+    [Fact]
+    public async Task GetPatientInfo_NonExistingPatient_ThrowsNotFound()
+    {
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("INVALID")).ReturnsAsync((Patient?)null);
+
+        await Assert.ThrowsAsync<API.Dialitech.Application.Common.Exceptions.NotFoundException>(
+            () => _service.GetPatientInfoAsync("INVALID"));
+    }
+
+    [Fact]
     public async Task ProcessBatch_MultipleReadings_SavesLastState()
     {
         var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };

@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.RateLimiting;
 namespace API.Dialitech.Controllers;
 
 [ApiController]
-[EnableRateLimiting("batch")]
 [Route("api/v1/health-data")]
 public class HealthDataController : ControllerBase
 {
@@ -18,9 +17,17 @@ public class HealthDataController : ControllerBase
     }
 
     [HttpPost("batch")]
+    [EnableRateLimiting("batch")]
     public async Task<IActionResult> ProcessBatch([FromBody] BatchRequest request)
     {
         var result = await _healthDataService.ProcessBatchAsync(request);
+        return Ok(result);
+    }
+
+    [HttpGet("patient-info/{patientCode}")]
+    public async Task<IActionResult> GetPatientInfo(string patientCode)
+    {
+        var result = await _healthDataService.GetPatientInfoAsync(patientCode);
         return Ok(result);
     }
 }

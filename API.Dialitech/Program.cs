@@ -2,6 +2,7 @@ using System.Text;
 using API.Dialitech.Application;
 using API.Dialitech.HealthChecks;
 using API.Dialitech.Infrastructure;
+using API.Dialitech.Infrastructure.Data;
 using API.Dialitech.Infrastructure.Services;
 using API.Dialitech.Middleware;
 using API.Dialitech.OpenApi;
@@ -124,6 +125,11 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
+{
+    await MongoDataSeeder.SeedAsync(app.Services);
+}
 
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<GlobalExceptionHandler>();
