@@ -30,6 +30,9 @@ if (string.IsNullOrEmpty(mongoConnectionString))
     throw new InvalidOperationException("MongoDbSettings:ConnectionString is not configured.");
 
 builder.Services.AddControllers();
+var openApiServerUrl = builder.Configuration["OpenApi:ServerUrl"]
+    ?? (builder.Environment.IsDevelopment() ? "http://localhost:5000" : "https://api-dialitech-core-v2.onrender.com");
+
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, ct) =>
@@ -38,8 +41,8 @@ builder.Services.AddOpenApi(options =>
         [
             new OpenApiServer
             {
-                Url = "https://api-dialitech-core-v2.onrender.com",
-                Description = "Production"
+                Url = openApiServerUrl,
+                Description = builder.Environment.IsDevelopment() ? "Development" : "Production"
             }
         ];
         return Task.CompletedTask;

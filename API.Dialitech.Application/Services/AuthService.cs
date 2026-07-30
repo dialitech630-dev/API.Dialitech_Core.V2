@@ -35,6 +35,9 @@ public class AuthService : IAuthService
         var caregiver = new Caregiver
         {
             Name = request.Name,
+            Lastname = request.Lastname,
+            Phone = request.Phone,
+            ImageUrl = request.ImageUrl,
             Email = request.Email.ToLowerInvariant(),
             PasswordHash = _passwordHasher.Hash(request.Password),
             Plan = plan
@@ -79,6 +82,9 @@ public class AuthService : IAuthService
     {
         Id = c.Id,
         Name = c.Name,
+        Lastname = c.Lastname,
+        Phone = c.Phone,
+        ImageUrl = c.ImageUrl,
         Email = c.Email,
         Plan = c.Plan.ToString()
     };
