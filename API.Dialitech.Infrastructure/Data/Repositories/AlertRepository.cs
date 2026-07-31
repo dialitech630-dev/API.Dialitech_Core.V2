@@ -48,4 +48,13 @@ public class AlertRepository : IAlertRepository
         var filter = Builders<Alert>.Filter.Eq(a => a.Id, id);
         await _context.Alerts.DeleteOneAsync(filter);
     }
+
+    public async Task DeleteByPatientIdAsync(string patientId)
+    {
+        if (string.IsNullOrWhiteSpace(patientId))
+            return;
+
+        var filter = Builders<Alert>.Filter.Eq(a => a.PatientId, patientId);
+        await _context.Alerts.DeleteManyAsync(filter);
+    }
 }

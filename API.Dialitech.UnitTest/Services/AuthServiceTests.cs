@@ -13,6 +13,9 @@ namespace API.Dialitech.UnitTest.Services;
 public class AuthServiceTests
 {
     private readonly Mock<ICaregiverRepository> _caregiverRepoMock;
+    private readonly Mock<IPatientRepository> _patientRepoMock;
+    private readonly Mock<IDeviceRepository> _deviceRepoMock;
+    private readonly Mock<IAlertRepository> _alertRepoMock;
     private readonly Mock<IPasswordHasher> _passwordHasherMock;
     private readonly Mock<ITokenService> _tokenServiceMock;
     private readonly AuthService _service;
@@ -20,10 +23,16 @@ public class AuthServiceTests
     public AuthServiceTests()
     {
         _caregiverRepoMock = new Mock<ICaregiverRepository>();
+        _patientRepoMock = new Mock<IPatientRepository>();
+        _deviceRepoMock = new Mock<IDeviceRepository>();
+        _alertRepoMock = new Mock<IAlertRepository>();
         _passwordHasherMock = new Mock<IPasswordHasher>();
         _tokenServiceMock = new Mock<ITokenService>();
         _service = new AuthService(
             _caregiverRepoMock.Object,
+            _patientRepoMock.Object,
+            _deviceRepoMock.Object,
+            _alertRepoMock.Object,
             _passwordHasherMock.Object,
             _tokenServiceMock.Object);
     }

@@ -41,4 +41,13 @@ public class CaregiverRepository : ICaregiverRepository
         var filter = Builders<Caregiver>.Filter.Eq(c => c.Id, caregiver.Id);
         await _context.Caregivers.ReplaceOneAsync(filter, caregiver);
     }
+
+    public async Task DeleteAsync(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Contains('$'))
+            return;
+
+        var filter = Builders<Caregiver>.Filter.Eq(c => c.Id, id);
+        await _context.Caregivers.DeleteOneAsync(filter);
+    }
 }

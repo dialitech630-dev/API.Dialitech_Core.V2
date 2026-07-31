@@ -49,4 +49,28 @@ public class AuthController : ControllerBase
 
         return Ok(caregiver);
     }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (caregiverId is null)
+            return Unauthorized();
+
+        var result = await _authService.UpdateProfileAsync(caregiverId, request);
+        return Ok(result);
+    }
+
+    [HttpDelete("account")]
+    [Authorize]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (caregiverId is null)
+            return Unauthorized();
+
+        await _authService.DeleteAccountAsync(caregiverId);
+        return NoContent();
+    }
 }

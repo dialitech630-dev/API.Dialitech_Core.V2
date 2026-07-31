@@ -8,4 +8,5 @@ public interface ICaregiverRepository
     Task<Caregiver?> GetByEmailAsync(string email);
     Task CreateAsync(Caregiver caregiver);
     Task UpdateAsync(Caregiver caregiver);
+    Task DeleteAsync(string id);
 }

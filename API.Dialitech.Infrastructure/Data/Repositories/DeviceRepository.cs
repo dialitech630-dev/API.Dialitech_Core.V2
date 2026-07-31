@@ -41,4 +41,13 @@ public class DeviceRepository : IDeviceRepository
         var filter = Builders<Device>.Filter.Eq(d => d.Id, device.Id);
         await _context.Devices.ReplaceOneAsync(filter, device);
     }
+
+    public async Task DeleteByPatientIdAsync(string patientId)
+    {
+        if (string.IsNullOrWhiteSpace(patientId))
+            return;
+
+        var filter = Builders<Device>.Filter.Eq(d => d.PatientId, patientId);
+        await _context.Devices.DeleteManyAsync(filter);
+    }
 }
