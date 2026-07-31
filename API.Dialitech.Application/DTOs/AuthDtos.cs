@@ -31,6 +31,29 @@ public class UpdateProfileRequest
     public string ImageUrl { get; set; } = string.Empty;
 }
 
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+public class ChangePlanRequest
+{
+    public string Plan { get; set; } = string.Empty;
+}
+
 public class CaregiverDto
 {
     public string Id { get; set; } = string.Empty;

@@ -73,4 +73,42 @@ public class AuthController : ControllerBase
         await _authService.DeleteAccountAsync(caregiverId);
         return NoContent();
     }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (caregiverId is null)
+            return Unauthorized();
+
+        await _authService.ChangePasswordAsync(caregiverId, request);
+        return NoContent();
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        var code = await _authService.ForgotPasswordAsync(request);
+        return Ok(new { code });
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+    {
+        await _authService.ResetPasswordAsync(request);
+        return NoContent();
+    }
+
+    [HttpPut("plan")]
+    [Authorize]
+    public async Task<IActionResult> ChangePlan([FromBody] ChangePlanRequest request)
+    {
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (caregiverId is null)
+            return Unauthorized();
+
+        var result = await _authService.ChangePlanAsync(caregiverId, request);
+        return Ok(result);
+    }
 }

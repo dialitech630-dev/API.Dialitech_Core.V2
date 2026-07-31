@@ -11,6 +11,8 @@ public class Caregiver
     public string ImageUrl { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+    public string? ResetCode { get; set; }
+    public DateTime? ResetCodeExpiresAt { get; set; }
     public Plan Plan { get; set; } = Plan.Standard;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

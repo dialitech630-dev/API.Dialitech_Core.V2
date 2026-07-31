@@ -118,6 +118,73 @@ public class AuthService : IAuthService
         await _caregiverRepo.DeleteAsync(caregiverId);
     }
 
+    public async Task ChangePasswordAsync(string caregiverId, ChangePasswordRequest request)
+    {
+        var caregiver = await _caregiverRepo.GetByIdAsync(caregiverId)
+            ?? throw new KeyNotFoundException("Caregiver not found.");
+
+        if (!_passwordHasher.Verify(request.CurrentPassword, caregiver.PasswordHash))
+            throw new ValidationException("CurrentPassword", "Current password is incorrect.");
+
+        caregiver.PasswordHash = _passwordHasher.Hash(request.NewPassword);
+        await _caregiverRepo.UpdateAsync(caregiver);
+    }
+
+    public async Task<string> ForgotPasswordAsync(ForgotPasswordRequest request)
+    {
+        var caregiver = await _caregiverRepo.GetByEmailAsync(request.Email)
+            ?? throw new NotFoundException("Caregiver", request.Email);
+
+        var code = Random.Shared.Next(100000, 999999).ToString();
+        caregiver.ResetCode = code;
+        caregiver.ResetCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+
+        await _caregiverRepo.UpdateAsync(caregiver);
+        return code;
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequest request)
+    {
+        var caregiver = await _caregiverRepo.GetByEmailAsync(request.Email)
+            ?? throw new NotFoundException("Caregiver", request.Email);
+
+        if (caregiver.ResetCode is null || caregiver.ResetCodeExpiresAt is null)
+            throw new ValidationException("Code", "No reset code requested.");
+
+        if (caregiver.ResetCodeExpiresAt < DateTime.UtcNow)
+            throw new ValidationException("Code", "Reset code has expired.");
+
+        if (!string.Equals(caregiver.ResetCode, request.Code, StringComparison.Ordinal))
+            throw new ValidationException("Code", "Invalid reset code.");
+
+        caregiver.PasswordHash = _passwordHasher.Hash(request.NewPassword);
+        caregiver.ResetCode = null;
+        caregiver.ResetCodeExpiresAt = null;
+
+        await _caregiverRepo.UpdateAsync(caregiver);
+    }
+
+    public async Task<CaregiverDto> ChangePlanAsync(string caregiverId, ChangePlanRequest request)
+    {
+        if (!Enum.TryParse<Plan>(request.Plan, true, out var plan))
+            throw new ValidationException("Plan", "Invalid plan.");
+
+        var caregiver = await _caregiverRepo.GetByIdAsync(caregiverId)
+            ?? throw new KeyNotFoundException("Caregiver not found.");
+
+        var patientCount = await _patientRepo.CountByCaregiverIdAsync(caregiverId);
+        var newLimit = (int)plan;
+
+        if (patientCount > newLimit)
+            throw new ValidationException("Plan",
+                $"Cannot downgrade to {plan}: currently have {patientCount} patients, plan allows {newLimit}.");
+
+        caregiver.Plan = plan;
+        await _caregiverRepo.UpdateAsync(caregiver);
+
+        return MapToDto(caregiver);
+    }
+
     private static CaregiverDto MapToDto(Caregiver c) => new()
     {
         Id = c.Id,

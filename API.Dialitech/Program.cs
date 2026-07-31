@@ -32,20 +32,23 @@ if (string.IsNullOrEmpty(mongoConnectionString))
 
 builder.Services.AddControllers();
 var openApiServerUrl = builder.Configuration["OpenApi:ServerUrl"]
-    ?? (builder.Environment.IsDevelopment() ? "http://localhost:5000" : "https://api-dialitech-core-v2.onrender.com");
+    ?? (builder.Environment.IsDevelopment() ? null : "https://api-dialitech-core-v2.onrender.com");
 
 builder.Services.AddOpenApi(options =>
 {
     options.AddDocumentTransformer((document, context, ct) =>
     {
-        document.Servers =
-        [
-            new OpenApiServer
-            {
-                Url = openApiServerUrl,
-                Description = builder.Environment.IsDevelopment() ? "Development" : "Production"
-            }
-        ];
+        if (openApiServerUrl is not null)
+        {
+            document.Servers =
+            [
+                new OpenApiServer
+                {
+                    Url = openApiServerUrl,
+                    Description = builder.Environment.IsDevelopment() ? "Development" : "Production"
+                }
+            ];
+        }
         return Task.CompletedTask;
     });
 });

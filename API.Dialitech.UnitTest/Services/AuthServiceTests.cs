@@ -147,4 +147,179 @@ public class AuthServiceTests
 
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task ChangePasswordAsync_ValidCurrentPassword_UpdatesHash()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            PasswordHash = "old-hash"
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+        _passwordHasherMock.Setup(p => p.Verify("old-pass", "old-hash")).Returns(true);
+        _passwordHasherMock.Setup(p => p.Hash("new-pass")).Returns("new-hash");
+
+        await _service.ChangePasswordAsync("1", new ChangePasswordRequest
+        {
+            CurrentPassword = "old-pass",
+            NewPassword = "new-pass"
+        });
+
+        caregiver.PasswordHash.Should().Be("new-hash");
+        _caregiverRepoMock.Verify(r => r.UpdateAsync(caregiver), Times.Once);
+    }
+
+    [Fact]
+    public async Task ChangePasswordAsync_WrongCurrentPassword_ThrowsValidationException()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            PasswordHash = "old-hash"
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+        _passwordHasherMock.Setup(p => p.Verify("wrong", "old-hash")).Returns(false);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _service.ChangePasswordAsync("1",
+            new ChangePasswordRequest { CurrentPassword = "wrong", NewPassword = "new-pass" }));
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_ExistingEmail_ReturnsSixDigitCode()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com"
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(caregiver);
+
+        var code = await _service.ForgotPasswordAsync(new ForgotPasswordRequest { Email = "test@test.com" });
+
+        code.Should().MatchRegex("^\\d{6}$");
+        caregiver.ResetCode.Should().Be(code);
+        caregiver.ResetCodeExpiresAt.Should().NotBeNull();
+        _caregiverRepoMock.Verify(r => r.UpdateAsync(caregiver), Times.Once);
+    }
+
+    [Fact]
+    public async Task ForgotPasswordAsync_UnknownEmail_ThrowsNotFoundException()
+    {
+        _caregiverRepoMock.Setup(r => r.GetByEmailAsync("nobody@test.com"))
+            .ReturnsAsync((Caregiver?)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            _service.ForgotPasswordAsync(new ForgotPasswordRequest { Email = "nobody@test.com" }));
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_ValidCode_UpdatesPassword()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            PasswordHash = "old-hash",
+            ResetCode = "123456",
+            ResetCodeExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(caregiver);
+        _passwordHasherMock.Setup(p => p.Hash("new-pass")).Returns("new-hash");
+
+        await _service.ResetPasswordAsync(new ResetPasswordRequest
+        {
+            Email = "test@test.com",
+            Code = "123456",
+            NewPassword = "new-pass"
+        });
+
+        caregiver.PasswordHash.Should().Be("new-hash");
+        caregiver.ResetCode.Should().BeNull();
+        caregiver.ResetCodeExpiresAt.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_ExpiredCode_ThrowsValidationException()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            ResetCode = "123456",
+            ResetCodeExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(caregiver);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _service.ResetPasswordAsync(
+            new ResetPasswordRequest { Email = "test@test.com", Code = "123456", NewPassword = "new-pass" }));
+    }
+
+    [Fact]
+    public async Task ResetPasswordAsync_WrongCode_ThrowsValidationException()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            ResetCode = "123456",
+            ResetCodeExpiresAt = DateTime.UtcNow.AddMinutes(5)
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByEmailAsync("test@test.com")).ReturnsAsync(caregiver);
+
+        await Assert.ThrowsAsync<ValidationException>(() => _service.ResetPasswordAsync(
+            new ResetPasswordRequest { Email = "test@test.com", Code = "999999", NewPassword = "new-pass" }));
+    }
+
+    [Fact]
+    public async Task ChangePlanAsync_ValidPlan_UpdatesPlan()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            Plan = Plan.Standard
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+        _patientRepoMock.Setup(r => r.CountByCaregiverIdAsync("1")).ReturnsAsync(0);
+
+        var result = await _service.ChangePlanAsync("1", new ChangePlanRequest { Plan = "Premium" });
+
+        result.Plan.Should().Be("Premium");
+        caregiver.Plan.Should().Be(Plan.Premium);
+        _caregiverRepoMock.Verify(r => r.UpdateAsync(caregiver), Times.Once);
+    }
+
+    [Fact]
+    public async Task ChangePlanAsync_InvalidPlan_ThrowsValidationException()
+    {
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.ChangePlanAsync("1", new ChangePlanRequest { Plan = "Ultimate" }));
+    }
+
+    [Fact]
+    public async Task ChangePlanAsync_DowngradeExceedsPatientLimit_ThrowsValidationException()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Email = "test@test.com",
+            Plan = Plan.Premium
+        };
+
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+        _patientRepoMock.Setup(r => r.CountByCaregiverIdAsync("1")).ReturnsAsync(5);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.ChangePlanAsync("1", new ChangePlanRequest { Plan = "Standard" }));
+    }
 }
