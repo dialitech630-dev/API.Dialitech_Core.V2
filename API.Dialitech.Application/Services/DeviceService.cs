@@ -79,8 +79,6 @@ public class DeviceService : IDeviceService
         await _deviceRepo.CreateAsync(device);
 
         patient.DeviceSerialNumber = serialNumber;
-        patient.Code = null;
-        patient.CodeExpiresAt = null;
         await _patientRepo.UpdateAsync(patient);
 
         return new LinkDeviceResponse
