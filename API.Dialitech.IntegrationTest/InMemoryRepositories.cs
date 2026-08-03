@@ -60,8 +60,8 @@ public class InMemoryPatientRepository : IPatientRepository
     public Task<Patient?> GetByCodeAsync(string code)
     {
         var entity = _store.Values.FirstOrDefault(p =>
-            string.Equals(p.Code, code, StringComparison.Ordinal) &&
-            p.CodeExpiresAt > DateTime.UtcNow);
+            string.Equals(p.Code, code, StringComparison.Ordinal) ||
+            string.Equals(p.WearableCode, code, StringComparison.Ordinal));
         return Task.FromResult(entity);
     }
 
@@ -170,5 +170,34 @@ public class InMemoryAlertRepository : IAlertRepository
         foreach (var a in toRemove)
             _store.TryRemove(a.Id, out _);
         return Task.CompletedTask;
+    }
+}
+
+public class InMemoryReadingRepository : IReadingRepository
+{
+    private readonly ConcurrentDictionary<string, Reading> _store = new();
+
+    public Task AddManyAsync(IEnumerable<Reading> readings)
+    {
+        foreach (var reading in readings)
+        {
+            reading.Id ??= Guid.NewGuid().ToString("N");
+            _store[reading.Id] = reading;
+        }
+        return Task.CompletedTask;
+    }
+
+    public Task<List<Reading>> GetByPatientIdAsync(string patientId, DateTime? from, DateTime? to, int limit = 500)
+    {
+        var query = _store.Values.Where(r =>
+            string.Equals(r.PatientId, patientId, StringComparison.Ordinal));
+
+        if (from.HasValue)
+            query = query.Where(r => r.Timestamp >= from.Value);
+        if (to.HasValue)
+            query = query.Where(r => r.Timestamp <= to.Value);
+
+        var result = query.OrderByDescending(r => r.Timestamp).Take(limit).ToList();
+        return Task.FromResult(result);
     }
 }

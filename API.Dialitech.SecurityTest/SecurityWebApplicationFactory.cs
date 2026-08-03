@@ -23,7 +23,8 @@ public class SecurityWebApplicationFactory : WebApplicationFactory<Program>
                 d.ServiceType == typeof(ICaregiverRepository) ||
                 d.ServiceType == typeof(IPatientRepository) ||
                 d.ServiceType == typeof(IDeviceRepository) ||
-                d.ServiceType == typeof(IAlertRepository)).ToList();
+                d.ServiceType == typeof(IAlertRepository) ||
+                d.ServiceType == typeof(IReadingRepository)).ToList();
 
             foreach (var descriptor in descriptorsToRemove)
                 services.Remove(descriptor);
@@ -32,6 +33,7 @@ public class SecurityWebApplicationFactory : WebApplicationFactory<Program>
             services.AddSingleton<IPatientRepository, InMemoryPatientRepository>();
             services.AddSingleton<IDeviceRepository, InMemoryDeviceRepository>();
             services.AddSingleton<IAlertRepository, InMemoryAlertRepository>();
+            services.AddSingleton<IReadingRepository, InMemoryReadingRepository>();
         });
     }
 }
