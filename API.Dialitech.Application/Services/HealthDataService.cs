@@ -10,11 +10,16 @@ public class HealthDataService : IHealthDataService
 {
     private readonly IPatientRepository _patientRepo;
     private readonly IAlertRepository _alertRepo;
+    private readonly IReadingRepository _readingRepo;
 
-    public HealthDataService(IPatientRepository patientRepo, IAlertRepository alertRepo)
+    public HealthDataService(
+        IPatientRepository patientRepo,
+        IAlertRepository alertRepo,
+        IReadingRepository readingRepo)
     {
         _patientRepo = patientRepo;
         _alertRepo = alertRepo;
+        _readingRepo = readingRepo;
     }
 
     public async Task<BatchResponse> ProcessBatchAsync(BatchRequest request)
@@ -49,6 +54,18 @@ public class HealthDataService : IHealthDataService
         {
             await _alertRepo.CreateAsync(alerts[0]);
         }
+
+        var readings = request.Data.Select(point => new Reading
+        {
+            PatientId = patient.Id,
+            CaregiverId = patient.CaregiverId,
+            HeartRate = point.HeartRate,
+            Oxygen = point.Oxygen,
+            Activity = point.Activity,
+            Timestamp = point.Timestamp,
+            CreatedAt = DateTime.UtcNow
+        });
+        await _readingRepo.AddManyAsync(readings);
 
         if (lastPoint is not null)
         {

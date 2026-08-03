@@ -8,11 +8,16 @@ public class DashboardService : IDashboardService
 {
     private readonly IPatientRepository _patientRepo;
     private readonly IAlertRepository _alertRepo;
+    private readonly IReadingRepository _readingRepo;
 
-    public DashboardService(IPatientRepository patientRepo, IAlertRepository alertRepo)
+    public DashboardService(
+        IPatientRepository patientRepo,
+        IAlertRepository alertRepo,
+        IReadingRepository readingRepo)
     {
         _patientRepo = patientRepo;
         _alertRepo = alertRepo;
+        _readingRepo = readingRepo;
     }
 
     public async Task<DashboardSummary> GetSummaryAsync(string caregiverId)
@@ -69,6 +74,29 @@ public class DashboardService : IDashboardService
             LastReadingAt = patient.LastReadingAt,
             HasDevice = !string.IsNullOrEmpty(patient.DeviceSerialNumber),
             ActiveAlerts = activeAlerts
+        };
+    }
+
+    public async Task<ReadingsResponse?> GetPatientReadingsAsync(
+        string patientId, string caregiverId, DateTime? from, DateTime? to, int limit = 500)
+    {
+        var patient = await _patientRepo.GetByIdAsync(patientId);
+        if (patient is null || patient.CaregiverId != caregiverId)
+            return null;
+
+        var readings = await _readingRepo.GetByPatientIdAsync(patientId, from, to, limit);
+        readings = readings.OrderBy(r => r.Timestamp).ToList();
+
+        return new ReadingsResponse
+        {
+            PatientId = patient.Id,
+            Readings = readings.Select(r => new ReadingDto
+            {
+                Timestamp = r.Timestamp,
+                HeartRate = r.HeartRate,
+                Oxygen = r.Oxygen,
+                Activity = r.Activity
+            }).ToList()
         };
     }
 }

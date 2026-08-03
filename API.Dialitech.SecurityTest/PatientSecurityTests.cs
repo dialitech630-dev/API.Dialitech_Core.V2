@@ -40,6 +40,30 @@ public class PatientSecurityTests : IClassFixture<SecurityWebApplicationFactory>
     }
 
     [Fact]
+    public async Task GenerateWearableCode_AnotherCaregiver_ShouldBeRejected()
+    {
+        var email1 = $"wc1.{Guid.NewGuid()}@test.com";
+        var reg1 = new { name = "WC1", email = email1, password = "Test123!", plan = "Premium" };
+        var auth1 = await (await _client.PostAsJsonAsync("/api/v1/auth/register", reg1))
+            .Content.ReadFromJsonAsync<AuthResponse>();
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth1!.Token);
+        var patient = await (await _client.PostAsJsonAsync("/api/v1/patients",
+            new { name = "Patient1", age = 30, gender = "Male", notes = "" }))
+            .Content.ReadFromJsonAsync<PatientDto>();
+
+        var email2 = $"wc2.{Guid.NewGuid()}@test.com";
+        var reg2 = new { name = "WC2", email = email2, password = "Test123!", plan = "Premium" };
+        var auth2 = await (await _client.PostAsJsonAsync("/api/v1/auth/register", reg2))
+            .Content.ReadFromJsonAsync<AuthResponse>();
+
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth2!.Token);
+        var response = await _client.PostAsJsonAsync($"/api/v1/patients/{patient!.Id}/generate-wearable-code", new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task DeletePatient_FromAnotherCaregiver_ShouldReturnNotFound()
     {
         var email1 = $"cg1.{Guid.NewGuid()}@test.com";

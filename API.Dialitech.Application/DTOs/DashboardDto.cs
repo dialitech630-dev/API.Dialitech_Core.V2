@@ -19,3 +19,17 @@ public class PatientStatusDto
     public bool HasDevice { get; set; }
     public int ActiveAlerts { get; set; }
 }
+
+public class ReadingDto
+{
+    public DateTime Timestamp { get; set; }
+    public double HeartRate { get; set; }
+    public double Oxygen { get; set; }
+    public double Activity { get; set; }
+}
+
+public class ReadingsResponse
+{
+    public string PatientId { get; set; } = string.Empty;
+    public List<ReadingDto> Readings { get; set; } = [];
+}
