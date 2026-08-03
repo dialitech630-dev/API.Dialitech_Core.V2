@@ -39,6 +39,26 @@ public class DeviceService : IDeviceService
         };
     }
 
+    public async Task<GenerateCodeResponse> GenerateWearableCodeAsync(string patientId, string caregiverId)
+    {
+        var patient = await _patientRepo.GetByIdAsync(patientId)
+            ?? throw new NotFoundException("Patient", patientId);
+
+        if (patient.CaregiverId != caregiverId)
+            throw new ValidationException("Patient", "Patient does not belong to this caregiver.");
+
+        var code = Random.Shared.Next(100000, 999999).ToString("D6");
+        patient.WearableCode = code;
+        patient.WearableCodeExpiresAt = DateTime.UtcNow.AddSeconds(CodeExpirySeconds);
+        await _patientRepo.UpdateAsync(patient);
+
+        return new GenerateCodeResponse
+        {
+            Code = code,
+            ExpiresInSeconds = CodeExpirySeconds
+        };
+    }
+
     public async Task<ValidateCodeResponse> ValidateCodeAsync(string code)
     {
         var patient = await _patientRepo.GetByCodeAsync(code);

@@ -36,7 +36,9 @@ public class PatientRepository : IPatientRepository
         if (string.IsNullOrWhiteSpace(code))
             return null;
 
-        var filter = Builders<Patient>.Filter.Eq(p => p.Code, code);
+        var filter = Builders<Patient>.Filter.Or(
+            Builders<Patient>.Filter.Eq(p => p.Code, code),
+            Builders<Patient>.Filter.Eq(p => p.WearableCode, code));
         return await _context.Patients.Find(filter).FirstOrDefaultAsync();
     }
 

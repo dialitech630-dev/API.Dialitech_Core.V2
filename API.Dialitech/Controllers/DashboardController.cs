@@ -38,6 +38,24 @@ public class DashboardController : ControllerBase
         return Ok(status);
     }
 
+    [HttpGet("{patientId}/readings")]
+    public async Task<IActionResult> GetPatientReadings(
+        string patientId, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int limit = 500)
+    {
+        if (string.IsNullOrWhiteSpace(patientId) || patientId.Contains('$'))
+            return BadRequest("Invalid patient id");
+
+        if (limit is < 1 or > 1000)
+            return BadRequest("Limit must be between 1 and 1000");
+
+        var caregiverId = GetCaregiverId();
+        var readings = await _dashboardService.GetPatientReadingsAsync(patientId, caregiverId, from, to, limit);
+        if (readings is null)
+            return NotFound();
+
+        return Ok(readings);
+    }
+
     private string GetCaregiverId()
     {
         return User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value

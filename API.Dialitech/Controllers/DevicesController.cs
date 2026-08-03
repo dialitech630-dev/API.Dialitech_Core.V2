@@ -30,6 +30,20 @@ public class DevicesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("patients/{id}/generate-wearable-code")]
+    [Authorize]
+    public async Task<IActionResult> GenerateWearableCode(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id) || id.Contains('$'))
+            return BadRequest("Invalid patient id");
+
+        var caregiverId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new UnauthorizedAccessException();
+
+        var result = await _deviceService.GenerateWearableCodeAsync(id, caregiverId);
+        return Ok(result);
+    }
+
     [HttpPost("patients/validate-code")]
     public async Task<IActionResult> ValidateCode([FromBody] ValidateCodeRequest request)
     {

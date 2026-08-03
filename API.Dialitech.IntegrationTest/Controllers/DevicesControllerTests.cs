@@ -48,6 +48,58 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
     }
 
     [Fact]
+    public async Task GenerateWearableCode_ShouldReturnCode()
+    {
+        var (token, patientId) = await CreatePatientAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.PostAsJsonAsync($"/api/v1/patients/{patientId}/generate-wearable-code", new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var codeResponse = await response.Content.ReadFromJsonAsync<GenerateCodeResponse>();
+        codeResponse.Should().NotBeNull();
+        codeResponse!.Code.Should().HaveLength(6);
+        codeResponse.ExpiresInSeconds.Should().Be(300);
+    }
+
+    [Fact]
+    public async Task GenerateWearableCode_NoAuth_ShouldReturnUnauthorized()
+    {
+        var response = await _client.PostAsJsonAsync("/api/v1/patients/whatever/generate-wearable-code", new { });
+        response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task FullFlow_WearableCode_LinkAndBatch_Success()
+    {
+        var (token, patientId) = await CreatePatientAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var codeResponse = await _client.PostAsJsonAsync($"/api/v1/patients/{patientId}/generate-wearable-code", new { });
+        var code = (await codeResponse.Content.ReadFromJsonAsync<GenerateCodeResponse>())!.Code;
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var linkPayload = new { code, serialNumber = $"SN-WEAR-{Guid.NewGuid():N}" };
+        var linkResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", linkPayload);
+        linkResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var batchPayload = new
+        {
+            patientCode = code,
+            data = new[]
+            {
+                new { heartRate = 75.0, oxygen = 98.0, activity = 50.0, timestamp = "2026-08-02T12:00:00Z" }
+            }
+        };
+        var batchResponse = await _client.PostAsJsonAsync("/api/v1/health-data/batch", batchPayload);
+
+        batchResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var batchResult = await batchResponse.Content.ReadFromJsonAsync<BatchResponse>();
+        batchResult!.Status.Should().Be("processed");
+    }
+
+    [Fact]
     public async Task ValidateCode_ShouldReturnValid()
     {
         var (token, patientId) = await CreatePatientAsync();

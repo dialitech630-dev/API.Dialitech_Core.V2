@@ -35,6 +35,41 @@ public class DeviceServiceTests
     }
 
     [Fact]
+    public async Task GenerateWearableCode_SetsWearableCodeField()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1" };
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p1")).ReturnsAsync(patient);
+
+        var result = await _service.GenerateWearableCodeAsync("p1", "cg1");
+
+        result.Code.Should().HaveLength(6);
+        result.ExpiresInSeconds.Should().Be(300);
+        patient.WearableCode.Should().Be(result.Code);
+        patient.WearableCodeExpiresAt.Should().NotBeNull();
+        patient.Code.Should().BeNull();
+        _patientRepoMock.Verify(r => r.UpdateAsync(patient), Times.Once);
+    }
+
+    [Fact]
+    public async Task GenerateWearableCode_OtherCaregiver_ThrowsValidationException()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1" };
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p1")).ReturnsAsync(patient);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.GenerateWearableCodeAsync("p1", "cg2"));
+    }
+
+    [Fact]
+    public async Task GenerateWearableCode_NonExistingPatient_ThrowsNotFoundException()
+    {
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p9")).ReturnsAsync((Patient?)null);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            _service.GenerateWearableCodeAsync("p9", "cg1"));
+    }
+
+    [Fact]
     public async Task ValidateCode_ValidCode_ReturnsValid()
     {
         var patient = new Patient

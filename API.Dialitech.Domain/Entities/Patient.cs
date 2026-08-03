@@ -10,6 +10,8 @@ public class Patient
     public string Notes { get; set; } = string.Empty;
     public string? Code { get; set; }
     public DateTime? CodeExpiresAt { get; set; }
+    public string? WearableCode { get; set; }
+    public DateTime? WearableCodeExpiresAt { get; set; }
     public string? DeviceSerialNumber { get; set; }
     public double? LastHeartRate { get; set; }
     public double? LastOxygen { get; set; }

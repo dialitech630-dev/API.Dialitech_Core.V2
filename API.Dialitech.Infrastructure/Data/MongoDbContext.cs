@@ -35,6 +35,12 @@ public class MongoDbContext
             cm.AutoMap();
             cm.IdMemberMap.SetIdGenerator(StringObjectIdGenerator.Instance);
         });
+
+        BsonClassMap.RegisterClassMap<Reading>(cm =>
+        {
+            cm.AutoMap();
+            cm.IdMemberMap.SetIdGenerator(StringObjectIdGenerator.Instance);
+        });
     }
 
     public MongoDbContext(IOptions<MongoDbSettings> settings)
@@ -47,6 +53,7 @@ public class MongoDbContext
     public IMongoCollection<Patient> Patients => _database.GetCollection<Patient>("Patients");
     public IMongoCollection<Device> Devices => _database.GetCollection<Device>("Devices");
     public IMongoCollection<Alert> Alerts => _database.GetCollection<Alert>("Alerts");
+    public IMongoCollection<Reading> Readings => _database.GetCollection<Reading>("Readings");
 }
 
 public class MongoDbSettings

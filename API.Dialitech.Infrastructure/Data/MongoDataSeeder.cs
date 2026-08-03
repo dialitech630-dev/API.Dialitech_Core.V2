@@ -44,6 +44,8 @@ public static class MongoDataSeeder
             Notes = "Paciente de prueba",
             Code = "DEMO001",
             CodeExpiresAt = DateTime.UtcNow.AddDays(30),
+            WearableCode = "654321",
+            WearableCodeExpiresAt = DateTime.UtcNow.AddDays(30),
             DeviceSerialNumber = "SN-DEMO-001",
             LastHeartRate = 72.0,
             LastOxygen = 97.5,
@@ -62,6 +64,37 @@ public static class MongoDataSeeder
             RegisteredAt = DateTime.UtcNow
         };
         await context.Devices.InsertOneAsync(device);
+
+        var readings = new List<Reading>();
+        var now = DateTime.UtcNow;
+        for (var i = 0; i < 288; i++)
+        {
+            var timestamp = now.AddMinutes(-5 * (287 - i));
+            var heartRate = 68 + (i % 5) * 2;
+            var oxygen = 95 + (i % 3);
+            var activity = 30 + (i % 10) * 5;
+            if (i is 120 or 200)
+            {
+                heartRate = 132;
+                oxygen = 96;
+            }
+            else if (i == 160)
+            {
+                heartRate = 70;
+                oxygen = 88;
+            }
+            readings.Add(new Reading
+            {
+                PatientId = patient.Id,
+                CaregiverId = caregiver.Id,
+                HeartRate = heartRate,
+                Oxygen = oxygen,
+                Activity = activity,
+                Timestamp = timestamp,
+                CreatedAt = now
+            });
+        }
+        await context.Readings.InsertManyAsync(readings);
 
         logger.LogInformation("Seed data created: caregiver={Email}, patient={Code}", caregiver.Email, patient.Code);
     }

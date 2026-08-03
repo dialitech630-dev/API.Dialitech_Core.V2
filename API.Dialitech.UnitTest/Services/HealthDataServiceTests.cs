@@ -11,13 +11,16 @@ public class HealthDataServiceTests
 {
     private readonly Mock<IPatientRepository> _patientRepoMock;
     private readonly Mock<IAlertRepository> _alertRepoMock;
+    private readonly Mock<IReadingRepository> _readingRepoMock;
     private readonly HealthDataService _service;
 
     public HealthDataServiceTests()
     {
         _patientRepoMock = new Mock<IPatientRepository>();
         _alertRepoMock = new Mock<IAlertRepository>();
-        _service = new HealthDataService(_patientRepoMock.Object, _alertRepoMock.Object);
+        _readingRepoMock = new Mock<IReadingRepository>();
+        _service = new HealthDataService(
+            _patientRepoMock.Object, _alertRepoMock.Object, _readingRepoMock.Object);
     }
 
     [Fact]
@@ -145,5 +148,35 @@ public class HealthDataServiceTests
             p.LastHeartRate == 75 &&
             p.LastOxygen == 96 &&
             p.LastActivity == 30)), Times.Once);
+    }
+
+    [Fact]
+    public async Task ProcessBatch_InsertsOneReadingPerDataPoint()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1", Code = "CODE1" };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
+
+        var now = DateTime.UtcNow;
+        var request = new BatchRequest
+        {
+            PatientCode = "CODE1",
+            Data =
+            [
+                new BatchDataPoint { HeartRate = 70, Oxygen = 98, Activity = 20, Timestamp = now.AddSeconds(-10) },
+                new BatchDataPoint { HeartRate = 72, Oxygen = 97, Activity = 25, Timestamp = now.AddSeconds(-5) },
+                new BatchDataPoint { HeartRate = 75, Oxygen = 96, Activity = 30, Timestamp = now }
+            ]
+        };
+
+        await _service.ProcessBatchAsync(request);
+
+        _readingRepoMock.Verify(r => r.AddManyAsync(It.Is<IEnumerable<Reading>>(readings =>
+            readings.Count() == 3)), Times.Once);
+        _readingRepoMock.Verify(r => r.AddManyAsync(It.Is<IEnumerable<Reading>>(readings =>
+            readings.All(rd =>
+                rd.PatientId == "p1" &&
+                rd.CaregiverId == "cg1" &&
+                rd.Timestamp >= now.AddSeconds(-10) &&
+                rd.Timestamp <= now))), Times.Once);
     }
 }
