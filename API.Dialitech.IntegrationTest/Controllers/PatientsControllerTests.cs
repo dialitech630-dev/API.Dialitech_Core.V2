@@ -73,4 +73,64 @@ public class PatientsControllerTests : IClassFixture<CustomWebApplicationFactory
         var response = await _client.GetAsync("/api/v1/patients");
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
+
+    [Fact]
+    public async Task DeletePatient_ShouldReturnNoContent()
+    {
+        var token = await GetTokenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var createPayload = new { name = "ToDelete", age = 30, gender = "Male", notes = "" };
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/patients", createPayload);
+        var patient = await createResponse.Content.ReadFromJsonAsync<PatientDto>();
+
+        var response = await _client.DeleteAsync($"/api/v1/patients/{patient!.Id}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task GetPatientById_NonExisting_ShouldReturnNotFound()
+    {
+        var token = await GetTokenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.GetAsync("/api/v1/patients/nonexistent");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task DeletePatient_InvalidId_ShouldReturnBadRequest()
+    {
+        var token = await GetTokenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await _client.DeleteAsync("/api/v1/patients/$invalid");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task CreatePatient_WithClinicalData_ShouldReturnCreated()
+    {
+        var token = await GetTokenAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var payload = new
+        {
+            name = "Clinical Patient",
+            age = 45,
+            gender = "Female",
+            notes = "Has conditions",
+            diagnosis = "Chronic Kidney Disease",
+            treatmentType = "Hemodialysis",
+            medicalNotes = "Requires 3 sessions per week"
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1/patients", payload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Created);
+        var patient = await response.Content.ReadFromJsonAsync<PatientDto>();
+        patient!.Name.Should().Be("Clinical Patient");
+    }
 }

@@ -62,6 +62,41 @@ public class AuthTests : IClassFixture<SecurityWebApplicationFactory>
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
     }
 
+    [Fact]
+    public async Task Register_WithNoSqlOperatorInEmail_ShouldNotBypassValidation()
+    {
+        var payload = new { name = "NoSQL Test", email = "test@test.com", password = "Test123!", plan = "Standard" };
+        await _client.PostAsJsonAsync("/api/v1/auth/register", payload);
+
+        var maliciousPayload = new Dictionary<string, object>
+        {
+            { "name", "NoSQL Bypass" },
+            { "email", new Dictionary<string, string> { { "$ne", "test@test.com" } } },
+            { "password", "Test123!" },
+            { "plan", "Standard" }
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/register", maliciousPayload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Login_WithNoSqlOperatorInEmail_ShouldNotBypassAuth()
+    {
+        var email = $"real.{Guid.NewGuid()}@test.com";
+        var registerPayload = new { name = "Real User", email, password = "Test123!", plan = "Standard" };
+        await _client.PostAsJsonAsync("/api/v1/auth/register", registerPayload);
+
+        var maliciousPayload = new Dictionary<string, object>
+        {
+            { "email", new Dictionary<string, string> { { "$ne", "" } } },
+            { "password", "Test123!" }
+        };
+        var response = await _client.PostAsJsonAsync("/api/v1/auth/login", maliciousPayload);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private async Task<string> GetValidTokenAsync()
     {
         var email = $"tok.{Guid.NewGuid()}@test.com";

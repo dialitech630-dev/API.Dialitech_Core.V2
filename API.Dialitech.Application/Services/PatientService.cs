@@ -65,7 +65,7 @@ public class PatientService : IPatientService
             return;
 
         if (patient.CaregiverId != caregiverId)
-            throw new ValidationException("Patient", "Patient does not belong to this caregiver.");
+            throw new NotFoundException("Patient", id);
 
         await _patientRepo.DeleteAsync(id);
     }
