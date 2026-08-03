@@ -1,5 +1,8 @@
+using API.Dialitech.Domain.Interfaces;
+using API.Dialitech.Infrastructure.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 
 namespace API.Dialitech.IntegrationTest;
@@ -14,5 +17,22 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.UseSetting("JwtSettings:Issuer", "API.Dialitech.Test");
         builder.UseSetting("JwtSettings:Audience", "API.Dialitech.Test");
         builder.UseSetting("JwtSettings:ExpirationInMinutes", "60");
+
+        builder.ConfigureServices(services =>
+        {
+            var descriptorsToRemove = services.Where(d =>
+                d.ServiceType == typeof(ICaregiverRepository) ||
+                d.ServiceType == typeof(IPatientRepository) ||
+                d.ServiceType == typeof(IDeviceRepository) ||
+                d.ServiceType == typeof(IAlertRepository)).ToList();
+
+            foreach (var descriptor in descriptorsToRemove)
+                services.Remove(descriptor);
+
+            services.AddSingleton<ICaregiverRepository, InMemoryCaregiverRepository>();
+            services.AddSingleton<IPatientRepository, InMemoryPatientRepository>();
+            services.AddSingleton<IDeviceRepository, InMemoryDeviceRepository>();
+            services.AddSingleton<IAlertRepository, InMemoryAlertRepository>();
+        });
     }
 }
