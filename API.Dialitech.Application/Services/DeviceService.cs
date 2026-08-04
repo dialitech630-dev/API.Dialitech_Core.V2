@@ -62,11 +62,15 @@ public class DeviceService : IDeviceService
     public async Task<ValidateCodeResponse> ValidateCodeAsync(string code)
     {
         var patient = await _patientRepo.GetByCodeAsync(code);
-
-        if (patient is null || patient.CodeExpiresAt < DateTime.UtcNow)
-        {
+        if (patient is null)
             return new ValidateCodeResponse { IsValid = false };
-        }
+
+        var expiresAt = patient.WearableCode == code
+            ? patient.WearableCodeExpiresAt
+            : patient.CodeExpiresAt;
+
+        if (expiresAt is null || expiresAt < DateTime.UtcNow)
+            return new ValidateCodeResponse { IsValid = false };
 
         return new ValidateCodeResponse
         {
@@ -81,7 +85,11 @@ public class DeviceService : IDeviceService
         var patient = await _patientRepo.GetByCodeAsync(code)
             ?? throw new ValidationException("Code", "Invalid code.");
 
-        if (patient.CodeExpiresAt < DateTime.UtcNow)
+        var expiresAt = patient.WearableCode == code
+            ? patient.WearableCodeExpiresAt
+            : patient.CodeExpiresAt;
+
+        if (expiresAt is null || expiresAt < DateTime.UtcNow)
             throw new ValidationException("Code", "Code has expired.");
 
         var existingDevice = await _deviceRepo.GetBySerialNumberAsync(serialNumber);

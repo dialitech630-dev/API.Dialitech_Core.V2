@@ -80,6 +80,12 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
 
         _client.DefaultRequestHeaders.Authorization = null;
 
+        var validatePayload = new { code };
+        var validateResponse = await _client.PostAsJsonAsync("/api/v1/patients/validate-code", validatePayload);
+        validateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var validateResult = await validateResponse.Content.ReadFromJsonAsync<ValidateCodeResponse>();
+        validateResult!.IsValid.Should().BeTrue();
+
         var linkPayload = new { code, serialNumber = $"SN-WEAR-{Guid.NewGuid():N}" };
         var linkResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", linkPayload);
         linkResponse.StatusCode.Should().Be(HttpStatusCode.OK);

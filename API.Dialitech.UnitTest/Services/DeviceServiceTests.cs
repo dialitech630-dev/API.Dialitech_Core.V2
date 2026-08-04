@@ -103,6 +103,58 @@ public class DeviceServiceTests
     }
 
     [Fact]
+    public async Task ValidateCode_WearableCode_Valid_WhenLegacyExpired()
+    {
+        var patient = new Patient
+        {
+            Id = "p1",
+            Name = "Test",
+            Code = "111",
+            CodeExpiresAt = DateTime.UtcNow.AddMinutes(-5),
+            WearableCode = "654321",
+            WearableCodeExpiresAt = DateTime.UtcNow.AddMinutes(4)
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("654321")).ReturnsAsync(patient);
+
+        var result = await _service.ValidateCodeAsync("654321");
+
+        result.IsValid.Should().BeTrue();
+        result.PatientId.Should().Be("p1");
+    }
+
+    [Fact]
+    public async Task ValidateCode_WearableCode_Expired_ReturnsInvalid_EvenWhenLegacyFresh()
+    {
+        var patient = new Patient
+        {
+            Code = "111",
+            CodeExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            WearableCode = "654321",
+            WearableCodeExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("654321")).ReturnsAsync(patient);
+
+        var result = await _service.ValidateCodeAsync("654321");
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ValidateCode_NullExpiry_ReturnsInvalid()
+    {
+        var patient = new Patient
+        {
+            Code = "123456",
+            CodeExpiresAt = null
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("123456")).ReturnsAsync(patient);
+
+        var result = await _service.ValidateCodeAsync("123456");
+
+        result.IsValid.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task LinkDevice_ValidCode_LinksSuccessfully()
     {
         var patient = new Patient
@@ -123,5 +175,51 @@ public class DeviceServiceTests
         result.SerialNumber.Should().Be("SN001");
         _deviceRepoMock.Verify(r => r.CreateAsync(It.IsAny<Device>()), Times.Once);
         _patientRepoMock.Verify(r => r.UpdateAsync(It.IsAny<Patient>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task LinkDevice_WearableCode_Valid_WhenLegacyExpired()
+    {
+        var patient = new Patient
+        {
+            Id = "p1",
+            Name = "Test",
+            CaregiverId = "cg1",
+            Code = "111111",
+            CodeExpiresAt = DateTime.UtcNow.AddMinutes(-5),
+            WearableCode = "654321",
+            WearableCodeExpiresAt = DateTime.UtcNow.AddMinutes(4)
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("654321")).ReturnsAsync(patient);
+        _deviceRepoMock.Setup(r => r.GetBySerialNumberAsync("SN002"))
+            .ReturnsAsync((Device?)null);
+
+        var result = await _service.LinkDeviceAsync("654321", "SN002");
+
+        result.Linked.Should().BeTrue();
+        result.SerialNumber.Should().Be("SN002");
+        _patientRepoMock.Verify(r => r.UpdateAsync(It.Is<Patient>(p =>
+            p.DeviceSerialNumber == "SN002")), Times.Once);
+    }
+
+    [Fact]
+    public async Task LinkDevice_WearableCode_Expired_Throws_EvenWhenLegacyFresh()
+    {
+        var patient = new Patient
+        {
+            Id = "p1",
+            Name = "Test",
+            CaregiverId = "cg1",
+            Code = "111111",
+            CodeExpiresAt = DateTime.UtcNow.AddMinutes(5),
+            WearableCode = "654321",
+            WearableCodeExpiresAt = DateTime.UtcNow.AddMinutes(-1)
+        };
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("654321")).ReturnsAsync(patient);
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            _service.LinkDeviceAsync("654321", "SN002"));
+
+        _deviceRepoMock.Verify(r => r.CreateAsync(It.IsAny<Device>()), Times.Never);
     }
 }
