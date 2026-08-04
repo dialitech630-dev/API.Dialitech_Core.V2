@@ -322,4 +322,103 @@ public class AuthServiceTests
         await Assert.ThrowsAsync<ValidationException>(() =>
             _service.ChangePlanAsync("1", new ChangePlanRequest { Plan = "Standard" }));
     }
+
+    [Fact]
+    public async Task GetByIdAsync_ExistingCaregiver_ReturnsDto()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Name = "Test",
+            Lastname = "User",
+            Email = "test@test.com",
+            Plan = Plan.Standard
+        };
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+
+        var result = await _service.GetByIdAsync("1");
+
+        result.Should().NotBeNull();
+        result!.Name.Should().Be("Test");
+        result.Email.Should().Be("test@test.com");
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_NonExistingCaregiver_ReturnsNull()
+    {
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("nonexistent"))
+            .ReturnsAsync((Caregiver?)null);
+
+        var result = await _service.GetByIdAsync("nonexistent");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_HappyPath_UpdatesProfile()
+    {
+        var caregiver = new Caregiver
+        {
+            Id = "1",
+            Name = "Old",
+            Lastname = "Name",
+            Phone = "123",
+            ImageUrl = "old.jpg"
+        };
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+
+        var result = await _service.UpdateProfileAsync("1", new UpdateProfileRequest
+        {
+            Name = "New",
+            Lastname = "Name",
+            Phone = "456",
+            ImageUrl = "new.jpg"
+        });
+
+        result.Name.Should().Be("New");
+        result.Phone.Should().Be("456");
+        _caregiverRepoMock.Verify(r => r.UpdateAsync(caregiver), Times.Once);
+    }
+
+    [Fact]
+    public async Task UpdateProfileAsync_CaregiverNotFound_ThrowsKeyNotFoundException()
+    {
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("nonexistent"))
+            .ReturnsAsync((Caregiver?)null);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _service.UpdateProfileAsync("nonexistent", new UpdateProfileRequest
+            {
+                Name = "Test", Lastname = "Test", Phone = "123"
+            }));
+    }
+
+    [Fact]
+    public async Task DeleteAccountAsync_HappyPath_DeletesCaregiverAndPatients()
+    {
+        var caregiver = new Caregiver { Id = "1", Email = "test@test.com" };
+        var patients = new List<Patient>
+        {
+            new() { Id = "p1", CaregiverId = "1" }
+        };
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("1")).ReturnsAsync(caregiver);
+        _patientRepoMock.Setup(r => r.GetByCaregiverIdAsync("1")).ReturnsAsync(patients);
+
+        await _service.DeleteAccountAsync("1");
+
+        _patientRepoMock.Verify(r => r.DeleteAsync("p1"), Times.Once);
+        _deviceRepoMock.Verify(r => r.DeleteByPatientIdAsync("p1"), Times.Once);
+        _alertRepoMock.Verify(r => r.DeleteByPatientIdAsync("p1"), Times.Once);
+        _caregiverRepoMock.Verify(r => r.DeleteAsync("1"), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAccountAsync_CaregiverNotFound_ThrowsKeyNotFoundException()
+    {
+        _caregiverRepoMock.Setup(r => r.GetByIdAsync("nonexistent"))
+            .ReturnsAsync((Caregiver?)null);
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+            _service.DeleteAccountAsync("nonexistent"));
+    }
 }

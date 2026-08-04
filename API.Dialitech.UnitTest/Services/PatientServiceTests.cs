@@ -98,4 +98,93 @@ public class PatientServiceTests
 
         result.Should().BeNull();
     }
+
+    [Fact]
+    public async Task GetByIdAsync_PatientNotFound_ReturnsNull()
+    {
+        _patientRepoMock.Setup(r => r.GetByIdAsync("nonexistent"))
+            .ReturnsAsync((Patient?)null);
+
+        var result = await _service.GetByIdAsync("nonexistent", "cg1");
+
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_CorrectCaregiver_ReturnsPatient()
+    {
+        var patient = new Patient
+        {
+            Id = "p1",
+            CaregiverId = "cg1",
+            Name = "Test Patient"
+        };
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p1"))
+            .ReturnsAsync(patient);
+
+        var result = await _service.GetByIdAsync("p1", "cg1");
+
+        result.Should().NotBeNull();
+        result!.Name.Should().Be("Test Patient");
+    }
+
+    [Fact]
+    public async Task DeleteAsync_HappyPath_DeletesPatient()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1" };
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p1")).ReturnsAsync(patient);
+
+        await _service.DeleteAsync("p1", "cg1");
+
+        _patientRepoMock.Verify(r => r.DeleteAsync("p1"), Times.Once);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_PatientNotFound_DoesNothing()
+    {
+        _patientRepoMock.Setup(r => r.GetByIdAsync("nonexistent"))
+            .ReturnsAsync((Patient?)null);
+
+        await _service.DeleteAsync("nonexistent", "cg1");
+
+        _patientRepoMock.Verify(r => r.DeleteAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_WrongCaregiver_ThrowsNotFoundException()
+    {
+        var patient = new Patient { Id = "p1", CaregiverId = "cg1" };
+        _patientRepoMock.Setup(r => r.GetByIdAsync("p1")).ReturnsAsync(patient);
+
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            _service.DeleteAsync("p1", "cg2"));
+    }
+
+    [Fact]
+    public async Task GetAllAsync_ReturnsPatientsForCaregiver()
+    {
+        var patients = new List<Patient>
+        {
+            new() { Id = "p1", CaregiverId = "cg1", Name = "Patient1" },
+            new() { Id = "p2", CaregiverId = "cg1", Name = "Patient2" }
+        };
+        _patientRepoMock.Setup(r => r.GetByCaregiverIdAsync("cg1")).ReturnsAsync(patients);
+
+        var result = (await _service.GetAllAsync("cg1")).ToList();
+
+        result.Should().HaveCount(2);
+        result[0].Name.Should().Be("Patient1");
+        result[1].Name.Should().Be("Patient2");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_NoPatients_ReturnsEmpty()
+    {
+        _patientRepoMock.Setup(r => r.GetByCaregiverIdAsync("cg1"))
+            .ReturnsAsync(new List<Patient>());
+
+        var result = (await _service.GetAllAsync("cg1")).ToList();
+
+        result.Should().BeEmpty();
+    }
 }

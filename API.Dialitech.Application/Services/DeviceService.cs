@@ -25,7 +25,7 @@ public class DeviceService : IDeviceService
             ??             throw new NotFoundException("Patient", patientId);
 
         if (patient.CaregiverId != caregiverId)
-            throw new ValidationException("Patient", "Patient does not belong to this caregiver.");
+            throw new NotFoundException("Patient", patientId);
 
         var code = Random.Shared.Next(100000, 999999).ToString("D6");
         patient.Code = code;
