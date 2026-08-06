@@ -1,10 +1,14 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   DOTNET_VERSION: '10.0.x'
@@ -66,11 +70,6 @@ jobs:
     name: Integration Tests
     needs: build
     runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:7
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
 
@@ -84,9 +83,6 @@ jobs:
 
       - name: Run Integration Tests
         run: dotnet test API.Dialitech.IntegrationTest/API.Dialitech.IntegrationTest.csproj --no-restore -c Release --logger "trx" --results-directory TestResults
-        env:
-          MongoDbSettings__ConnectionString: mongodb://localhost:27017
-          MongoDbSettings__DatabaseName: DialitechDB_Test_CI
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -99,11 +95,6 @@ jobs:
     name: Security Tests
     needs: build
     runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:7
-        ports:
-          - 27017:27017
     steps:
       - uses: actions/checkout@v4
 
@@ -117,9 +108,6 @@ jobs:
 
       - name: Run Security Tests
         run: dotnet test API.Dialitech.SecurityTest/API.Dialitech.SecurityTest.csproj --no-restore -c Release --logger "trx" --results-directory TestResults
-        env:
-          MongoDbSettings__ConnectionString: mongodb://localhost:27017
-          MongoDbSettings__DatabaseName: DialitechDB_Test_Security_CI
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -143,8 +131,8 @@ jobs:
       - name: Restore
         run: dotnet restore API.Dialitech.slnx
 
-      - name: List vulnerable packages
-        run: dotnet list API.Dialitech.slnx package --vulnerable 2>&1 || true
+      - name: Audit NuGet packages
+        run: dotnet list API.Dialitech.slnx package --vulnerable --include-transitive
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -154,24 +142,3 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
-
-  docker:
-    name: Build Docker Image
-    needs: [unit-tests, integration-tests, security-tests, vulnerability-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: API.Dialitech/Dockerfile
-          push: false
-          tags: api-dialitech:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
