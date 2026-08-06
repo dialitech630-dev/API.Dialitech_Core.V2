@@ -154,6 +154,8 @@ Reglas aplicadas en ambas ramas:
 - Prohibido `force-push` y borrado de rama.
 - Aplica también a administradores.
 
+> Estado actual del repo: ya existe un ruleset **"Main Protection"** activo en la rama default (PR obligatorio, `deletion`, `non_fast_forward`). El script detecta rulesets existentes por su patrón de ramas y los **actualiza** (PUT) en vez de duplicarlos; si no existe, los crea (POST). Los checks requeridos se añaden al ejecutarlo.
+
 Alternativa por UI: Settings → Rules → New ruleset → "Branch" → elegir rama → activar los mismos controles (Pull request, Required status checks, Deletion, Non-fast-forward).
 
 > Si el script falla con "already exists", eliminar el ruleset previo por la UI o con `gh api --method DELETE repos/OWNER/REPO/rulesets/<id>`.

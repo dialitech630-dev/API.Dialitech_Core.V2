@@ -85,6 +85,7 @@ $rulesets = @(
     }
 )
 
+$existing = @{}
 foreach ($ruleset in $rulesets) {
     $json = $ruleset | ConvertTo-Json -Depth 10
 
@@ -95,20 +96,46 @@ foreach ($ruleset in $rulesets) {
         continue
     }
 
-    Write-Host "Creating ruleset '$($ruleset.name)'..." -ForegroundColor Yellow
-    $jsonFile = [System.IO.Path]::GetTempFileName()
-    Set-Content -LiteralPath $jsonFile -Value $json -Encoding utf8
-
-    gh api --method POST "repos/$Owner/$Repo/rulesets" --input $jsonFile
-    if ($LASTEXITCODE -ne 0) {
-        Remove-Item -LiteralPath $jsonFile -Force
-        throw "Failed to create ruleset '$($ruleset.name)'. It may already exist."
+    if ($existing.Count -eq 0) {
+        $existing = @(gh api "repos/$Owner/$Repo/rulesets" --jq '.[]')
     }
-    Remove-Item -LiteralPath $jsonFile -Force
+
+    $defaultBranch = (gh api "repos/$Owner/$Repo" --jq '.default_branch')
+
+    $refInclude = $ruleset.conditions.ref_name.include -join ","
+    $refInclude = $refInclude -replace [regex]::Escape("refs/heads/$defaultBranch"), "~DEFAULT_BRANCH"
+
+    $match = $existing | Where-Object {
+        $incl = ($_.conditions.ref_name.include -join ",")
+        $incl = $incl -replace [regex]::Escape("refs/heads/$defaultBranch"), "~DEFAULT_BRANCH"
+        $incl -eq $refInclude
+    } | Select-Object -First 1
+
+    if ($match) {
+        Write-Host "Updating ruleset '$($match.name)' (id=$($match.id))..." -ForegroundColor Yellow
+        $jsonFile = [System.IO.Path]::GetTempFileName()
+        Set-Content -LiteralPath $jsonFile -Value $json -Encoding utf8
+        gh api --method PUT "repos/$Owner/$Repo/rulesets/$($match.id)" --input $jsonFile
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $jsonFile -Force
+            throw "Failed to update ruleset '$($match.name)'."
+        }
+        Remove-Item -LiteralPath $jsonFile -Force
+    } else {
+        Write-Host "Creating ruleset '$($ruleset.name)'..." -ForegroundColor Yellow
+        $jsonFile = [System.IO.Path]::GetTempFileName()
+        Set-Content -LiteralPath $jsonFile -Value $json -Encoding utf8
+        gh api --method POST "repos/$Owner/$Repo/rulesets" --input $jsonFile
+        if ($LASTEXITCODE -ne 0) {
+            Remove-Item -LiteralPath $jsonFile -Force
+            throw "Failed to create ruleset '$($ruleset.name)'."
+        }
+        Remove-Item -LiteralPath $jsonFile -Force
+    }
 }
 
 if ($DryRun) {
     Write-Host "Dry run finished. Review the JSON above, then run without -DryRun." -ForegroundColor Cyan
 } else {
-    Write-Host "Rulesets created successfully." -ForegroundColor Green
+    Write-Host "Rulesets created/updated successfully." -ForegroundColor Green
 }
