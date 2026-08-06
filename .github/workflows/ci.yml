@@ -32,7 +32,7 @@ jobs:
         run: dotnet build API.Dialitech.slnx --no-restore -c Release
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-output
           path: |
@@ -60,7 +60,7 @@ jobs:
         run: dotnet test API.Dialitech.UnitTest/API.Dialitech.UnitTest.csproj --no-restore -c Release --logger "trx" --results-directory TestResults
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-results
           path: TestResults
@@ -85,7 +85,7 @@ jobs:
         run: dotnet test API.Dialitech.IntegrationTest/API.Dialitech.IntegrationTest.csproj --no-restore -c Release --logger "trx" --results-directory TestResults
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-results
           path: TestResults
@@ -110,7 +110,7 @@ jobs:
         run: dotnet test API.Dialitech.SecurityTest/API.Dialitech.SecurityTest.csproj --no-restore -c Release --logger "trx" --results-directory TestResults
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: security-test-results
           path: TestResults
