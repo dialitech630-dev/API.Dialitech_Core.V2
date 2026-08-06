@@ -1,0 +1,35 @@
+name: api-dialitech
+services:
+  - name: api-dialitech
+    image:
+      registry_type: DOCR
+      repository: api-dialitech
+      tag: __IMAGE_TAG__
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 8080
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 30
+      period_seconds: 30
+    envs:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: MongoDbSettings__DatabaseName
+        value: DialitechDB
+      - key: MongoDbSettings__ConnectionString
+        type: SECRET
+        value: ${MONGODB_CONNECTION_STRING}
+      - key: JwtSettings__SecretKey
+        type: SECRET
+        value: ${JWT_SECRET_KEY}
+      - key: JwtSettings__Issuer
+        value: API.Dialitech
+      - key: JwtSettings__Audience
+        value: API.Dialitech
+      - key: JwtSettings__ExpirationInMinutes
+        value: "60"
+      - key: Cors__Origins
+        value: ""
+      - key: OpenApi__Enabled
+        value: "true"
