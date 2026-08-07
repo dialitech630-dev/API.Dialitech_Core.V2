@@ -1,8 +1,11 @@
+using System.Net;
+using System.Text.Json;
 using API.Dialitech.Application.DTOs;
 using API.Dialitech.Application.Services;
 using API.Dialitech.Domain.Entities;
 using API.Dialitech.Domain.Interfaces;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 
 namespace API.Dialitech.UnitTest.Services;
@@ -12,6 +15,8 @@ public class HealthDataServiceTests
     private readonly Mock<IPatientRepository> _patientRepoMock;
     private readonly Mock<IAlertRepository> _alertRepoMock;
     private readonly Mock<IReadingRepository> _readingRepoMock;
+    private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
+    private readonly Mock<ILogger<HealthDataService>> _loggerMock;
     private readonly HealthDataService _service;
 
     public HealthDataServiceTests()
@@ -19,8 +24,20 @@ public class HealthDataServiceTests
         _patientRepoMock = new Mock<IPatientRepository>();
         _alertRepoMock = new Mock<IAlertRepository>();
         _readingRepoMock = new Mock<IReadingRepository>();
+        _httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        _loggerMock = new Mock<ILogger<HealthDataService>>();
+
+        // Default: ML service not available (tests verify rule-based alerts only)
+        _httpClientFactoryMock
+            .Setup(f => f.CreateClient("MlService"))
+            .Returns(new HttpClient { BaseAddress = new Uri("http://localhost:9999") });
+
         _service = new HealthDataService(
-            _patientRepoMock.Object, _alertRepoMock.Object, _readingRepoMock.Object);
+            _patientRepoMock.Object,
+            _alertRepoMock.Object,
+            _readingRepoMock.Object,
+            _httpClientFactoryMock.Object,
+            _loggerMock.Object);
     }
 
     [Fact]
