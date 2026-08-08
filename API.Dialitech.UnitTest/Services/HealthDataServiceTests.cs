@@ -10,7 +10,7 @@ using Moq;
 
 namespace API.Dialitech.UnitTest.Services;
 
-public class HealthDataServiceTests
+public class HealthDataServiceTests : IDisposable
 {
     private readonly Mock<IPatientRepository> _patientRepoMock;
     private readonly Mock<IAlertRepository> _alertRepoMock;
@@ -18,6 +18,7 @@ public class HealthDataServiceTests
     private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
     private readonly Mock<ILogger<HealthDataService>> _loggerMock;
     private readonly HealthDataService _service;
+    private readonly HttpClient _mlHttpClient;
 
     public HealthDataServiceTests()
     {
@@ -27,10 +28,12 @@ public class HealthDataServiceTests
         _httpClientFactoryMock = new Mock<IHttpClientFactory>();
         _loggerMock = new Mock<ILogger<HealthDataService>>();
 
+        _mlHttpClient = new HttpClient { BaseAddress = new Uri("http://localhost:9999") };
+
         // Default: ML service not available (tests verify rule-based alerts only)
         _httpClientFactoryMock
             .Setup(f => f.CreateClient("MlService"))
-            .Returns(new HttpClient { BaseAddress = new Uri("http://localhost:9999") });
+            .Returns(_mlHttpClient);
 
         _service = new HealthDataService(
             _patientRepoMock.Object,
@@ -38,6 +41,11 @@ public class HealthDataServiceTests
             _readingRepoMock.Object,
             _httpClientFactoryMock.Object,
             _loggerMock.Object);
+    }
+
+    public void Dispose()
+    {
+        _mlHttpClient.Dispose();
     }
 
     [Fact]
