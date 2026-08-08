@@ -191,7 +191,25 @@ public class HealthDataService : IHealthDataService
                 mlResult.RiskPrediction.RiskLevel,
                 mlResult.AnomalyDetection.AnomalyDetected);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex,
+                "ML Service analysis failed for patient {PatientCode} — continuing with rule-based alerts",
+                patient.Code);
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex,
+                "ML Service analysis failed for patient {PatientCode} — continuing with rule-based alerts",
+                patient.Code);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex,
+                "ML Service analysis failed for patient {PatientCode} — continuing with rule-based alerts",
+                patient.Code);
+        }
+        catch (NotSupportedException ex)
         {
             _logger.LogWarning(ex,
                 "ML Service analysis failed for patient {PatientCode} — continuing with rule-based alerts",
