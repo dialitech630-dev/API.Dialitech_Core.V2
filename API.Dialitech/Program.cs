@@ -31,6 +31,16 @@ if (string.IsNullOrEmpty(mongoConnectionString))
     throw new InvalidOperationException("MongoDbSettings:ConnectionString is not configured.");
 
 builder.Services.AddControllers();
+
+// ML Service HttpClient
+builder.Services.AddHttpClient("MlService", client =>
+{
+    var mlBaseUrl = builder.Configuration["MlService:BaseUrl"] ?? "http://localhost:8000";
+    var mlApiKey = builder.Configuration["MlService:ApiKey"] ?? "test-key";
+    client.BaseAddress = new Uri(mlBaseUrl);
+    client.DefaultRequestHeaders.Add("X-API-Key", mlApiKey);
+    client.Timeout = TimeSpan.FromSeconds(30);
+});
 var openApiServerUrl = builder.Configuration["OpenApi:ServerUrl"]
     ?? (builder.Environment.IsDevelopment() ? null : "https://api-dialitech-core-v2.onrender.com");
 
