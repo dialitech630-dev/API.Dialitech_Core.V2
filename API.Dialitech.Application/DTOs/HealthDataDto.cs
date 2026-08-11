@@ -25,8 +25,15 @@ public class PatientInfoResponse
     public string PatientCode { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string? DeviceSerialNumber { get; set; }
+    public bool HasDeviceToken { get; set; }
     public double? LastHeartRate { get; set; }
     public double? LastOxygen { get; set; }
     public double? LastActivity { get; set; }
     public DateTime? LastReadingAt { get; set; }
+}
+
+public class DeviceTokenRequest
+{
+    public string PatientCode { get; set; } = string.Empty;
+    public string DeviceToken { get; set; } = string.Empty;
 }

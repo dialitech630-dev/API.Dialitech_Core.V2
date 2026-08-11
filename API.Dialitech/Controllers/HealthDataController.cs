@@ -30,4 +30,11 @@ public class HealthDataController : ControllerBase
         var result = await _healthDataService.GetPatientInfoAsync(patientCode);
         return Ok(result);
     }
+
+    [HttpPost("device-token")]
+    public async Task<IActionResult> RegisterDeviceToken([FromBody] DeviceTokenRequest request)
+    {
+        await _healthDataService.RegisterDeviceTokenAsync(request.PatientCode, request.DeviceToken);
+        return NoContent();
+    }
 }

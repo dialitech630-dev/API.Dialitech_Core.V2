@@ -25,6 +25,24 @@ public static class DependencyInjection
         services.AddScoped<IAlertRepository, AlertRepository>();
         services.AddScoped<IReadingRepository, ReadingRepository>();
 
+        var firebaseCredentials = configuration["FIREBASE_ADMIN_CREDENTIALS"];
+        if (string.IsNullOrWhiteSpace(firebaseCredentials))
+        {
+            var credsFile = Path.Join(AppContext.BaseDirectory, "firebase-admin.json");
+            if (File.Exists(credsFile))
+                firebaseCredentials = File.ReadAllText(credsFile);
+        }
+
+        if (!string.IsNullOrWhiteSpace(firebaseCredentials))
+        {
+            FirebaseNotificationService.Initialize(firebaseCredentials);
+            services.AddSingleton<INotificationService, FirebaseNotificationService>();
+        }
+        else
+        {
+            services.AddSingleton<INotificationService, NoopNotificationService>();
+        }
+
         return services;
     }
 }

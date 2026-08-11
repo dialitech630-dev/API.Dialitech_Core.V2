@@ -117,4 +117,41 @@ public class HealthDataControllerTests : IClassFixture<CustomWebApplicationFacto
         var result = await response.Content.ReadFromJsonAsync<BatchResponse>();
         result!.AlertsTriggered.Should().Be(1);
     }
+
+    [Fact]
+    public async Task PostDeviceToken_WithValidCode_ReturnsNoContent()
+    {
+        var code = await GetPatientCodeAsync();
+
+        var request = new { patientCode = code, deviceToken = "fcm-token-integration-test" };
+
+        var response = await _client.PostAsJsonAsync("/api/v1/health-data/device-token", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
+    [Fact]
+    public async Task PostDeviceToken_WithInvalidCode_ReturnsNotFound()
+    {
+        var request = new { patientCode = "INVALID", deviceToken = "fcm-token" };
+
+        var response = await _client.PostAsJsonAsync("/api/v1/health-data/device-token", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task PostDeviceToken_ThenPatientInfo_HasDeviceTokenTrue()
+    {
+        var code = await GetPatientCodeAsync();
+
+        var tokenRequest = new { patientCode = code, deviceToken = "fcm-token-integration-test" };
+        await _client.PostAsJsonAsync("/api/v1/health-data/device-token", tokenRequest);
+
+        var response = await _client.GetAsync($"/api/v1/health-data/patient-info/{code}");
+        var result = await response.Content.ReadFromJsonAsync<PatientInfoResponse>();
+
+        result!.HasDeviceToken.Should().BeTrue();
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

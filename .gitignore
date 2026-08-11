@@ -366,3 +366,7 @@ FodyWeavers.xsd
 appsettings.Development.json
 appsettings.Production.json
 appsettings.Staging.json
+
+# Firebase service account keys
+firebase-admin.json
+google-services.json

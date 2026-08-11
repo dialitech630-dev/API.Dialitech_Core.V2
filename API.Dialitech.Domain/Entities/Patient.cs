@@ -12,6 +12,8 @@ public class Patient
     public DateTime? CodeExpiresAt { get; set; }
     public string? WearableCode { get; set; }
     public DateTime? WearableCodeExpiresAt { get; set; }
+    public string? DeviceToken { get; set; }
+    public DateTime? DeviceTokenUpdatedAt { get; set; }
     public string? DeviceSerialNumber { get; set; }
     public double? LastHeartRate { get; set; }
     public double? LastOxygen { get; set; }
