@@ -1,21 +1,27 @@
+using System.Net;
+using System.Text.Json;
 using API.Dialitech.Application.DTOs;
 using API.Dialitech.Application.Interfaces;
 using API.Dialitech.Application.Services;
 using API.Dialitech.Domain.Entities;
 using API.Dialitech.Domain.Interfaces;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace API.Dialitech.UnitTest.Services;
 
-public class HealthDataServiceTests
+public class HealthDataServiceTests : IDisposable
 {
     private readonly Mock<IPatientRepository> _patientRepoMock;
     private readonly Mock<IAlertRepository> _alertRepoMock;
     private readonly Mock<IReadingRepository> _readingRepoMock;
     private readonly Mock<INotificationService> _notificationMock;
+    private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
+    private readonly Mock<ILogger<HealthDataService>> _loggerMock;
     private readonly HealthDataService _service;
+    private readonly HttpClient _mlHttpClient;
 
     public HealthDataServiceTests()
     {
@@ -23,12 +29,28 @@ public class HealthDataServiceTests
         _alertRepoMock = new Mock<IAlertRepository>();
         _readingRepoMock = new Mock<IReadingRepository>();
         _notificationMock = new Mock<INotificationService>();
+        _httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        _loggerMock = new Mock<ILogger<HealthDataService>>();
+
+        _mlHttpClient = new HttpClient { BaseAddress = new Uri("http://localhost:9999") };
+
+        // Default: ML service not available (tests verify rule-based alerts only)
+        _httpClientFactoryMock
+            .Setup(f => f.CreateClient("MlService"))
+            .Returns(_mlHttpClient);
+
         _service = new HealthDataService(
             _patientRepoMock.Object,
             _alertRepoMock.Object,
             _readingRepoMock.Object,
             _notificationMock.Object,
-            NullLogger<HealthDataService>.Instance);
+            _httpClientFactoryMock.Object,
+            _loggerMock.Object);
+    }
+
+    public void Dispose()
+    {
+        _mlHttpClient.Dispose();
     }
 
     [Fact]
