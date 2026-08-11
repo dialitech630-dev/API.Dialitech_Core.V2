@@ -28,7 +28,7 @@ public static class DependencyInjection
         var firebaseCredentials = configuration["FIREBASE_ADMIN_CREDENTIALS"];
         if (string.IsNullOrWhiteSpace(firebaseCredentials))
         {
-            var credsFile = Path.Combine(AppContext.BaseDirectory, "firebase-admin.json");
+            var credsFile = Path.Join(AppContext.BaseDirectory, "firebase-admin.json");
             if (File.Exists(credsFile))
                 firebaseCredentials = File.ReadAllText(credsFile);
         }

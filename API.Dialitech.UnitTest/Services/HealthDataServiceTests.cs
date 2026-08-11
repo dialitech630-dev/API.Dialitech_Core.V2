@@ -147,7 +147,8 @@ public class HealthDataServiceTests : IDisposable
     [Fact]
     public async Task GetPatientInfo_NonExistingPatient_ThrowsNotFound()
     {
-        _patientRepoMock.Setup(r => r.GetByCodeAsync("INVALID")).ReturnsAsync((Patient?)null);
+        Patient? nullPatient = null;
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("INVALID")).ReturnsAsync(nullPatient);
 
         await Assert.ThrowsAsync<API.Dialitech.Application.Common.Exceptions.NotFoundException>(
             () => _service.GetPatientInfoAsync("INVALID"));
@@ -272,7 +273,7 @@ public class HealthDataServiceTests : IDisposable
         };
         _patientRepoMock.Setup(r => r.GetByCodeAsync("CODE1")).ReturnsAsync(patient);
         _notificationMock.Setup(n => n.SendHealthAlertAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ThrowsAsync(new Exception("firebase unavailable"));
+            .ThrowsAsync(new HttpRequestException("firebase unavailable"));
 
         var request = new BatchRequest
         {
@@ -306,7 +307,8 @@ public class HealthDataServiceTests : IDisposable
     [Fact]
     public async Task RegisterDeviceToken_NonExistingPatient_ThrowsNotFound()
     {
-        _patientRepoMock.Setup(r => r.GetByCodeAsync("INVALID")).ReturnsAsync((Patient?)null);
+        Patient? nullPatient = null;
+        _patientRepoMock.Setup(r => r.GetByCodeAsync("INVALID")).ReturnsAsync(nullPatient);
 
         await Assert.ThrowsAsync<API.Dialitech.Application.Common.Exceptions.NotFoundException>(
             () => _service.RegisterDeviceTokenAsync("INVALID", "fcm-token"));

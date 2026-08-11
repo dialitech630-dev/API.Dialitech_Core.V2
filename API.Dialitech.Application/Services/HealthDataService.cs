@@ -72,7 +72,12 @@ public class HealthDataService : IHealthDataService
                         "Alerta de salud",
                         mostCriticalAlert.Message);
                 }
-                catch (Exception ex)
+                catch (HttpRequestException ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Failed to send push notification for patient {PatientId}", patient.Id);
+                }
+                catch (OperationCanceledException ex)
                 {
                     _logger.LogWarning(ex,
                         "Failed to send push notification for patient {PatientId}", patient.Id);
