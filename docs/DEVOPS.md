@@ -191,3 +191,33 @@ dotnet list API.Dialitech.slnx package --vulnerable --include-transitive
 ```
 
 Después del primer push: revisar en GitHub las runs de CI, CodeQL y Secret Scan, y en DigitalOcean el deploy + `https://<app-url>/health`.
+
+---
+
+## 9. Notificaciones push Firebase (FCM)
+
+### 9.1 Qué necesita el backend
+
+El backend usa el **service account** de Firebase (`firebase-admin.json`, JSON de la cuenta de servicio del proyecto Firebase). **No** usa el `google-services.json` (ese archivo es solo para apps Android).
+
+Obtener el service account: Firebase Console → ⚙️ Project settings → Service accounts → Generate new private key → se descarga `firebase-admin.json`.
+
+### 9.2 Proporcionar las credenciales
+
+El secreto se lee de la variable de entorno `FIREBASE_ADMIN_CREDENTIALS` (contenido JSON completo del service account) o, si no existe, del archivo `firebase-admin.json` en el directorio base de la app. Ambos archivos (`firebase-admin.json`, `google-services.json`) están en `.gitignore`.
+
+- **Local:** copiar el JSON como `firebase-admin.json` junto al .csproj de `API.Dialitech`.
+- **Render:** `render.yaml` ya define `FIREBASE_ADMIN_CREDENTIALS` con `sync: false` (valor a pegar en el dashboard de Render).
+- **DigitalOcean App Platform:** añadir env var `FIREBASE_ADMIN_CREDENTIALS` como secret en `.do/app.yaml` o desde el dashboard (ver tabla 4.3).
+
+> **Fall-soft:** si las credenciales no están presentes, el API arranca normal y las notificaciones son no-op (los batches y alertas siguen funcionando). El envío de push **nunca** rompe el `200` de un batch: si Firebase falla, se registra un warning y el batch se procesa igual.
+
+### 9.3 Flujo de las notificaciones
+
+1. La app del paciente registra su token FCM: `POST /api/v1/health-data/device-token` con `{ "patientCode": "...", "deviceToken": "..." }` → `204 No Content`.
+2. Por cada batch con alertas críticas (HR < 50, HR > 120, SpO₂ < 90) y con token registrado, se envía **una** notificación con la alerta más severa del lote.
+3. `GET /api/v1/health-data/patient-info/{code}` devuelve `hasDeviceToken` para que la app sepa si el paciente ya está registrado.
+
+### 9.4 Inicialización automática
+
+`DependencyInjection.AddInfrastructure` registra el servicio real (`FirebaseNotificationService`, paquete `FirebaseAdmin`) solo si las credenciales existen; de lo contrario registra `NoopNotificationService`. No requiere configuración adicional en `Program.cs`.

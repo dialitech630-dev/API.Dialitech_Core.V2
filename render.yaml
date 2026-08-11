@@ -20,3 +20,5 @@ services:
         value: "60"
       - key: Cors__Origins
         value: ""
+      - key: FIREBASE_ADMIN_CREDENTIALS
+        sync: false
