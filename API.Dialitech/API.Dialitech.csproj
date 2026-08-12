@@ -33,4 +33,8 @@
     <ProjectReference Include="..\API.Dialitech.Infrastructure\API.Dialitech.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="firebase-admin.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('firebase-admin.json')" />
+  </ItemGroup>
+
 </Project>

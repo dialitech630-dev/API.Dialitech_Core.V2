@@ -17,24 +17,40 @@ public class FirebaseNotificationService : INotificationService
         _logger = logger;
     }
 
-    public static void Initialize(string credentialsJson)
+    public static bool TryInitialize(string credentialsJson)
     {
         if (_app is not null)
-            return;
+            return true;
 
         lock (Lock)
         {
             if (_app is null)
             {
-                var credential = CredentialFactory
-                    .FromJson<GoogleCredential>(credentialsJson);
-
-                _app = FirebaseApp.Create(new AppOptions
+                try
                 {
-                    Credential = credential
-                });
+                    var credential = CredentialFactory
+                        .FromJson<ServiceAccountCredential>(credentialsJson)
+                        .ToGoogleCredential();
+
+                    _app = FirebaseApp.Create(new AppOptions
+                    {
+                        Credential = credential
+                    });
+
+                    return true;
+                }
+                catch (ArgumentException)
+                {
+                    return false;
+                }
+                catch (InvalidOperationException)
+                {
+                    return false;
+                }
             }
         }
+
+        return true;
     }
 
     public async Task SendHealthAlertAsync(string deviceToken, string title, string body)
