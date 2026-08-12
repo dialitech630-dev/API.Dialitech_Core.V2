@@ -206,7 +206,7 @@ Obtener el service account: Firebase Console → ⚙️ Project settings → Ser
 
 El secreto se lee de la variable de entorno `FIREBASE_ADMIN_CREDENTIALS` (contenido JSON completo del service account) o, si no existe, del archivo `firebase-admin.json` en el directorio base de la app. Ambos archivos (`firebase-admin.json`, `google-services.json`) están en `.gitignore`.
 
-- **Local:** copiar el JSON como `firebase-admin.json` junto al .csproj de `API.Dialitech`.
+- **Local:** copiar el JSON como `firebase-admin.json` junto al .csproj de `API.Dialitech` — el csproj lo copia automáticamente al output (`CopyToOutputDirectory="PreserveNewest"`) y la DI lo detecta. Alternativa: definir la env var `FIREBASE_ADMIN_CREDENTIALS` (ej. vía User Secrets).
 - **Render:** `render.yaml` ya define `FIREBASE_ADMIN_CREDENTIALS` con `sync: false` (valor a pegar en el dashboard de Render).
 - **DigitalOcean App Platform:** añadir env var `FIREBASE_ADMIN_CREDENTIALS` como secret en `.do/app.yaml` o desde el dashboard (ver tabla 4.3).
 
@@ -220,4 +220,4 @@ El secreto se lee de la variable de entorno `FIREBASE_ADMIN_CREDENTIALS` (conten
 
 ### 9.4 Inicialización automática
 
-`DependencyInjection.AddInfrastructure` registra el servicio real (`FirebaseNotificationService`, paquete `FirebaseAdmin`) solo si las credenciales existen; de lo contrario registra `NoopNotificationService`. No requiere configuración adicional en `Program.cs`.
+`DependencyInjection.AddInfrastructure` registra el servicio real (`FirebaseNotificationService`, paquete `FirebaseAdmin`) solo si las credenciales existen **y son válidas** (`TryInitialize` valida el JSON del service account); si no, registra `NoopNotificationService`. No requiere configuración adicional en `Program.cs`.

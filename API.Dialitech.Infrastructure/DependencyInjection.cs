@@ -35,8 +35,10 @@ public static class DependencyInjection
 
         if (!string.IsNullOrWhiteSpace(firebaseCredentials))
         {
-            FirebaseNotificationService.Initialize(firebaseCredentials);
-            services.AddSingleton<INotificationService, FirebaseNotificationService>();
+            if (FirebaseNotificationService.TryInitialize(firebaseCredentials))
+                services.AddSingleton<INotificationService, FirebaseNotificationService>();
+            else
+                services.AddSingleton<INotificationService, NoopNotificationService>();
         }
         else
         {
