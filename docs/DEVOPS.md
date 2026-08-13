@@ -218,6 +218,13 @@ El secreto se lee de la variable de entorno `FIREBASE_ADMIN_CREDENTIALS` (conten
 2. Por cada batch con alertas críticas (HR < 50, HR > 120, SpO₂ < 90) y con token registrado, se envía **una** notificación con la alerta más severa del lote.
 3. `GET /api/v1/health-data/patient-info/{code}` devuelve `hasDeviceToken` para que la app sepa si el paciente ya está registrado.
 
-### 9.4 Inicialización automática
+### 9.4 Códigos de vinculación de un solo uso
+
+- Un código generado (`generate-code` / `generate-wearable-code`) es **válido para una sola vinculación**: `POST /api/v1/devices/link` lo marca como usado (`CodeUsedAt` / `WearableCodeUsedAt` en el paciente) y ya no puede vincular otro dispositivo (`400 Code has already been used`).
+- `POST /api/v1/patients/validate-code` devuelve `isValid: false` para códigos ya usados o expirados.
+- **Idempotencia**: si el mismo serial que ya está vinculado reintenta con el código usado (retry por timeout), el link responde `200` sin crear duplicados.
+- Generar un código nuevo resetea su marca de uso, permitiendo vincular otro dispositivo (ej. reemplazo de wearable). El código se conserva en el paciente tras el uso porque el wearable lo sigue usando como `patientCode` en el batch.
+
+### 9.5 Inicialización automática
 
 `DependencyInjection.AddInfrastructure` registra el servicio real (`FirebaseNotificationService`, paquete `FirebaseAdmin`) solo si las credenciales existen **y son válidas** (`TryInitialize` valida el JSON del service account); si no, registra `NoopNotificationService`. No requiere configuración adicional en `Program.cs`.
