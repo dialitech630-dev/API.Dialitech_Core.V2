@@ -30,6 +30,7 @@ public class DeviceService : IDeviceService
         var code = Random.Shared.Next(100000, 999999).ToString("D6");
         patient.Code = code;
         patient.CodeExpiresAt = DateTime.UtcNow.AddSeconds(CodeExpirySeconds);
+        patient.CodeUsedAt = null;
         await _patientRepo.UpdateAsync(patient);
 
         return new GenerateCodeResponse
@@ -50,6 +51,7 @@ public class DeviceService : IDeviceService
         var code = Random.Shared.Next(100000, 999999).ToString("D6");
         patient.WearableCode = code;
         patient.WearableCodeExpiresAt = DateTime.UtcNow.AddSeconds(CodeExpirySeconds);
+        patient.WearableCodeUsedAt = null;
         await _patientRepo.UpdateAsync(patient);
 
         return new GenerateCodeResponse
@@ -65,11 +67,9 @@ public class DeviceService : IDeviceService
         if (patient is null)
             return new ValidateCodeResponse { IsValid = false };
 
-        var expiresAt = patient.WearableCode == code
-            ? patient.WearableCodeExpiresAt
-            : patient.CodeExpiresAt;
+        var (expiresAt, usedAt) = GetCodeState(patient, code);
 
-        if (expiresAt is null || expiresAt < DateTime.UtcNow)
+        if (expiresAt is null || expiresAt < DateTime.UtcNow || usedAt is not null)
             return new ValidateCodeResponse { IsValid = false };
 
         return new ValidateCodeResponse
@@ -85,12 +85,25 @@ public class DeviceService : IDeviceService
         var patient = await _patientRepo.GetByCodeAsync(code)
             ?? throw new ValidationException("Code", "Invalid code.");
 
-        var expiresAt = patient.WearableCode == code
-            ? patient.WearableCodeExpiresAt
-            : patient.CodeExpiresAt;
+        var (expiresAt, usedAt) = GetCodeState(patient, code);
 
         if (expiresAt is null || expiresAt < DateTime.UtcNow)
             throw new ValidationException("Code", "Code has expired.");
+
+        if (usedAt is not null)
+        {
+            if (patient.DeviceSerialNumber == serialNumber)
+            {
+                return new LinkDeviceResponse
+                {
+                    Linked = true,
+                    SerialNumber = serialNumber,
+                    PatientId = patient.Id
+                };
+            }
+
+            throw new ValidationException("Code", "Code has already been used.");
+        }
 
         var existingDevice = await _deviceRepo.GetBySerialNumberAsync(serialNumber);
         if (existingDevice is not null)
@@ -107,6 +120,10 @@ public class DeviceService : IDeviceService
         await _deviceRepo.CreateAsync(device);
 
         patient.DeviceSerialNumber = serialNumber;
+        if (patient.WearableCode == code)
+            patient.WearableCodeUsedAt = DateTime.UtcNow;
+        else
+            patient.CodeUsedAt = DateTime.UtcNow;
         await _patientRepo.UpdateAsync(patient);
 
         return new LinkDeviceResponse
@@ -115,5 +132,12 @@ public class DeviceService : IDeviceService
             SerialNumber = serialNumber,
             PatientId = patient.Id
         };
+    }
+
+    private static (DateTime? ExpiresAt, DateTime? UsedAt) GetCodeState(Patient patient, string code)
+    {
+        return patient.WearableCode == code
+            ? (patient.WearableCodeExpiresAt, patient.WearableCodeUsedAt)
+            : (patient.CodeExpiresAt, patient.CodeUsedAt);
     }
 }

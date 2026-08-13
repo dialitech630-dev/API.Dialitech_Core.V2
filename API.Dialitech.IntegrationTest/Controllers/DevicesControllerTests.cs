@@ -142,4 +142,71 @@ public class DevicesControllerTests : IClassFixture<CustomWebApplicationFactory>
         var linkResult = await linkResponse.Content.ReadFromJsonAsync<LinkDeviceResponse>();
         linkResult!.Linked.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task LinkTwice_WithSameCode_SecondDevice_Fails()
+    {
+        var (token, patientId) = await CreatePatientAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var codeResponse = await _client.PostAsJsonAsync($"/api/v1/patients/{patientId}/generate-code", new { });
+        var code = (await codeResponse.Content.ReadFromJsonAsync<GenerateCodeResponse>())!.Code;
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var firstLink = new { code, serialNumber = $"SN-A-{Guid.NewGuid():N}" };
+        var firstResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", firstLink);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var secondLink = new { code, serialNumber = $"SN-B-{Guid.NewGuid():N}" };
+        var secondResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", secondLink);
+
+        secondResponse.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Relink_SameSerial_WithUsedCode_ReturnsOk_Idempotent()
+    {
+        var (token, patientId) = await CreatePatientAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var codeResponse = await _client.PostAsJsonAsync($"/api/v1/patients/{patientId}/generate-code", new { });
+        var code = (await codeResponse.Content.ReadFromJsonAsync<GenerateCodeResponse>())!.Code;
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var serial = $"SN-SAME-{Guid.NewGuid():N}";
+        var firstLink = new { code, serialNumber = serial };
+        var firstResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", firstLink);
+        firstResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var retryLink = new { code, serialNumber = serial };
+        var retryResponse = await _client.PostAsJsonAsync("/api/v1/devices/link", retryLink);
+
+        retryResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var linkResult = await retryResponse.Content.ReadFromJsonAsync<LinkDeviceResponse>();
+        linkResult!.Linked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateCode_AfterUse_ReturnsInvalid()
+    {
+        var (token, patientId) = await CreatePatientAsync();
+        _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var codeResponse = await _client.PostAsJsonAsync($"/api/v1/patients/{patientId}/generate-code", new { });
+        var code = (await codeResponse.Content.ReadFromJsonAsync<GenerateCodeResponse>())!.Code;
+
+        _client.DefaultRequestHeaders.Authorization = null;
+
+        var linkPayload = new { code, serialNumber = $"SN-{Guid.NewGuid():N}" };
+        await _client.PostAsJsonAsync("/api/v1/devices/link", linkPayload);
+
+        var validatePayload = new { code };
+        var validateResponse = await _client.PostAsJsonAsync("/api/v1/patients/validate-code", validatePayload);
+
+        validateResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var validateResult = await validateResponse.Content.ReadFromJsonAsync<ValidateCodeResponse>();
+        validateResult!.IsValid.Should().BeFalse();
+    }
 }
