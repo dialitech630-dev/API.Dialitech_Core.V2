@@ -2,6 +2,7 @@ using API.Dialitech.Application.DTOs;
 using API.Dialitech.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Dialitech.Controllers;
 
@@ -45,6 +46,7 @@ public class DevicesController : ControllerBase
     }
 
     [HttpPost("patients/validate-code")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> ValidateCode([FromBody] ValidateCodeRequest request)
     {
         var result = await _deviceService.ValidateCodeAsync(request.Code);
@@ -52,6 +54,7 @@ public class DevicesController : ControllerBase
     }
 
     [HttpPost("devices/link")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> LinkDevice([FromBody] LinkDeviceRequest request)
     {
         var result = await _deviceService.LinkDeviceAsync(request.Code, request.SerialNumber);

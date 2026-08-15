@@ -17,6 +17,9 @@ using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
+static int IntOrDefault(string? value, int fallback) =>
+    int.TryParse(value, out var parsed) ? parsed : fallback;
+
 builder.Host.UseSerilog((context, config) =>
     config.ReadFrom.Configuration(context.Configuration));
 
@@ -108,6 +111,30 @@ builder.Services.AddRateLimiter(options =>
         cfg.QueueLimit = 10;
     });
 
+    options.AddFixedWindowLimiter("sensitive", cfg =>
+    {
+        cfg.PermitLimit = IntOrDefault(builder.Configuration["RateLimiting:SensitivePermitLimit"], 30);
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 2;
+    });
+
+    options.AddFixedWindowLimiter("register", cfg =>
+    {
+        cfg.PermitLimit = IntOrDefault(builder.Configuration["RateLimiting:RegisterPermitLimit"], 15);
+        cfg.Window = TimeSpan.FromHours(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter("auth-restore", cfg =>
+    {
+        cfg.PermitLimit = IntOrDefault(builder.Configuration["RateLimiting:AuthRestorePermitLimit"], 5);
+        cfg.Window = TimeSpan.FromMinutes(1);
+        cfg.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        cfg.QueueLimit = 0;
+    });
+
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
@@ -138,6 +165,20 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 var app = builder.Build();
+
+if (string.IsNullOrWhiteSpace(app.Configuration["MlService:ApiKey"]) ||
+    string.Equals(app.Configuration["MlService:ApiKey"], "test-key", StringComparison.Ordinal))
+{
+    app.Logger.LogWarning(
+        "MlService:ApiKey no está configurado; se usará la clave por defecto 'test-key'. Configúrala en producción.");
+}
+
+if (app.Environment.IsProduction() &&
+    app.Configuration.GetValue<string>("MlService:BaseUrl")?.Contains("localhost", StringComparison.OrdinalIgnoreCase) == true)
+{
+    app.Logger.LogWarning(
+        "MlService:BaseUrl apunta a localhost en producción; el análisis ML fallará silenciosamente.");
+}
 
 if (!app.Environment.IsDevelopment())
 {
@@ -178,6 +219,28 @@ app.Use(async (context, next) =>
 
     await next();
 });
+
+var openApiAccessToken = builder.Configuration["OpenApi:AccessToken"];
+if (!string.IsNullOrWhiteSpace(openApiAccessToken))
+{
+    app.UseWhen(
+        ctx => ctx.Request.Path.StartsWithSegments("/openapi", StringComparison.OrdinalIgnoreCase)
+            || ctx.Request.Path.StartsWithSegments("/scalar", StringComparison.OrdinalIgnoreCase),
+        branch => branch.Use(async (ctx, next) =>
+        {
+            var provided = ctx.Request.Headers["X-API-Access"].ToString();
+            if (string.IsNullOrWhiteSpace(provided))
+                provided = ctx.Request.Query["x-api-access"].ToString();
+
+            if (!string.Equals(provided, openApiAccessToken, StringComparison.Ordinal))
+            {
+                ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                return;
+            }
+
+            await next();
+        }));
+}
 
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("OpenApi:Enabled"))
 {

@@ -18,6 +18,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var response = await _authService.RegisterAsync(request);
@@ -87,6 +88,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth-restore")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         var code = await _authService.ForgotPasswordAsync(request);
@@ -94,6 +96,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("reset-password")]
+    [EnableRateLimiting("auth-restore")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         await _authService.ResetPasswordAsync(request);
