@@ -194,7 +194,36 @@ Después del primer push: revisar en GitHub las runs de CI, CodeQL y Secret Scan
 
 ---
 
-## 9. Notificaciones push Firebase (FCM)
+## 9. Endurecimiento de endpoints públicos (rate limiting)
+
+Los endpoints públicos (sin JWT) están protegidos con rate limiting por IP (ventana fija). Políticas:
+
+| Política | Endpoints | Límite por IP | Ajustable con (env) |
+|---|---|---|---|
+| `login` | `auth/login` | 5/min | — (fijo) |
+| `batch` | `health-data/batch` | 30/min + cola 10 | — (fijo) |
+| `sensitive` | `patients/validate-code`, `devices/link`, `health-data/patient-info/{code}`, `health-data/device-token` | 30/min + cola 2 | `RateLimiting__SensitivePermitLimit` |
+| `register` | `auth/register` | 15/hora | `RateLimiting__RegisterPermitLimit` |
+| `auth-restore` | `auth/forgot-password`, `auth/reset-password` | 5/min | `RateLimiting__AuthRestorePermitLimit` |
+
+Los valores por defecto viven en la sección `RateLimiting` de `appsettings.json` / `appsettings.Production.json` y se sobreescriben con variables de entorno (convención `Section__Key`, ej. `RateLimiting__SensitivePermitLimit=60` en DigitalOcean App Platform).
+
+> Si un cliente legítimo (app móvil/web) comienza a recibir `429 Too Many Requests`, subir el límite correspondiente **sin deploy**: las variables `RateLimiting__*` se leen en cada arranque.
+
+### OpenAPI / Scalar en producción
+
+Scalar está habilitado en producción (`OpenApi__Enabled=true`) para descubrimiento de endpoints. Opción de endurecimiento **opcional** (desactivada por defecto, no cambia el comportamiento actual):
+
+- Configurar `OpenApi__AccessToken` (env). Si tiene valor, `/openapi/*` y `/scalar/*` exigen el token vía header `X-API-Access` o query `?x-api-access=`.
+- Dejarla vacía = acceso abierto como hoy.
+
+### Notas de operación del servicio ML
+
+- El arranque registra un **warning** si `MlService:ApiKey` está vacía o usa el valor por defecto `test-key`, y otro si `MlService:BaseUrl` apunta a `localhost` en producción. El API **no** se detiene (el ML es fall-soft), pero esos warnings indican que el análisis ML no está conectado.
+
+---
+
+## 10. Notificaciones push Firebase (FCM)
 
 ### 9.1 Qué necesita el backend
 

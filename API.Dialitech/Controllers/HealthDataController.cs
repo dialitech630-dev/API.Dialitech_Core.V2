@@ -25,6 +25,7 @@ public class HealthDataController : ControllerBase
     }
 
     [HttpGet("patient-info/{patientCode}")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> GetPatientInfo(string patientCode)
     {
         var result = await _healthDataService.GetPatientInfoAsync(patientCode);
@@ -32,6 +33,7 @@ public class HealthDataController : ControllerBase
     }
 
     [HttpPost("device-token")]
+    [EnableRateLimiting("sensitive")]
     public async Task<IActionResult> RegisterDeviceToken([FromBody] DeviceTokenRequest request)
     {
         await _healthDataService.RegisterDeviceTokenAsync(request.PatientCode, request.DeviceToken);
