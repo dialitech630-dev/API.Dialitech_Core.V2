@@ -28,6 +28,22 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # docker/setup-buildx-action@v3
 
+      - name: Verify secrets and variables
+        env:
+          DO_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          DO_APP_ID: ${{ vars.DIGITALOCEAN_APP_ID }}
+        run: |
+          if [ -z "$DO_TOKEN" ]; then
+            echo "::error::DIGITALOCEAN_ACCESS_TOKEN no existe o llega vacio. Verifica: Settings > Secrets and variables > Actions > pestana 'Secrets' (NO 'Variables'), nombre exacto, y que no este solo en un Environment distinto a 'production'."
+            exit 1
+          fi
+          echo "OK: DIGITALOCEAN_ACCESS_TOKEN presente (longitud: $(printf '%s' "$DO_TOKEN" | wc -c))"
+          if [ -z "$DO_APP_ID" ]; then
+            echo "::warning::DIGITALOCEAN_APP_ID vacia; el paso final de deploy fallara. Verifica: Settings > Secrets and variables > Actions > pestana 'Variables'."
+          else
+            echo "OK: DIGITALOCEAN_APP_ID presente"
+          fi
+
       - name: Install doctl
         uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # digitalocean/action-doctl@v2.5.2
         with:
