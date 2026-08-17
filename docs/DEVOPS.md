@@ -32,7 +32,7 @@ Reglas críticas (ver `SECURITY.md`):
 | `ci.yml` | push a `main`/`develop` y PR hacia `main`/`develop` | `build`, `unit-tests`, `integration-tests`, `security-tests`, `vulnerability-scan` |
 | `codeql.yml` | push/PR + `schedule` semanal (lunes 03:37) | `analyze` (CodeQL C#, security-and-quality) |
 | `secret-scan.yml` | push/PR | `gitleaks` (escaneo de secretos en todo el historial) |
-| `cd.yml` | push a `main` + `workflow_dispatch` | build imagen, push a DOCR, `doctl apps update` |
+| `cd.yml` | push a `main` + `workflow_dispatch` | build imagen, **escaneo Trivy de la imagen (HIGH/CRITICAL) + SBOM CycloneDX**, deploy a DOCR/App Platform bajo el **environment `production`** (modo observador) |
 
 Los nombres de job (`build`, `unit-tests`, `integration-tests`, `security-tests`, `vulnerability-scan`, `analyze`, `gitleaks`) son los **status checks** que exigen los Rulesets.
 
@@ -194,7 +194,37 @@ Después del primer push: revisar en GitHub las runs de CI, CodeQL y Secret Scan
 
 ---
 
-## 9. Endurecimiento de endpoints públicos (rate limiting)
+## 9. Endurecimiento del pipeline
+
+### 11.1 Pins de GitHub Actions (supply chain)
+
+Todos los `uses:` de los workflows están pinneados a **SHA completo de commit** con comentario de trazabilidad (`# owner/action@vX`). Si se desactualizan, **Dependabot** abre un PR con el SHA nuevo (ecosistema `github-actions` ya configurado).
+
+- `aquasecurity/trivy-action` está en una **release estable** (`v0.23.0`), nunca en `master`.
+- `digitalocean/action-doctl@v2` quedó pinneado a `v2.5.2` (el tag `v2` es móvil y no se puede pinnear).
+- Al agregar una action nueva: pinnearla a SHA y añadir el comentario de versión (resolver con `git ls-remote https://github.com/<owner>/<repo> refs/tags/<tag> refs/tags/<tag>^{}`).
+
+### 11.2 Environment `production` (modo observador)
+
+El job de deploy (`cd.yml`) corre bajo `environment: production`:
+
+- Creado en GitHub → Settings → Environments → `production` (restringido a `main`).
+- **Modo observador**: sin reviewers obligatorios — el flujo actual no se pausa; cada deploy queda registrado con timeline en la pestaña Environments (quién/cuándo/desde qué commit).
+- Si algún día se requiere gate humano: añadir required reviewers en ese environment (sin tocar código, los runs pendientes pedirán aprobación).
+
+### 11.3 Escaneo de la imagen + SBOM en el CD
+
+Orden en `cd.yml` (el deploy **no corre** si algún paso anterior falla):
+
+1. **Trivy image scan** de `registry.digitalocean.com/dialitech/api-dialitech:sha-<commit>` con severidad `HIGH,CRITICAL` y `exit-code 1` → si la imagen es vulnerable, el job falla **antes** del paso de deploy.
+2. **Upload SARIF** a la pestaña Security (requiere `security-events: write` en el job; se sube incluso si el escaneo falla, `if: always()`).
+3. **SBOM CycloneDX** (`bom.cdx.json`) publicado como artifact `sbom-<commit>`.
+
+La suite: mantener `ci.yml` (fs-scan) + `codeql` (SAST) + este escaneo de imagen cubre código, filesystem, dependencias e imagen final.
+
+---
+
+## 10. Endurecimiento de endpoints públicos (rate limiting)
 
 Los endpoints públicos (sin JWT) están protegidos con rate limiting por IP (ventana fija). Políticas:
 
@@ -223,7 +253,7 @@ Scalar está habilitado en producción (`OpenApi__Enabled=true`) para descubrimi
 
 ---
 
-## 10. Notificaciones push Firebase (FCM)
+## 11. Notificaciones push Firebase (FCM)
 
 ### 9.1 Qué necesita el backend
 
