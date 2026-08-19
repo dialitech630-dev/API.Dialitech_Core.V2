@@ -65,7 +65,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Scan image with Trivy (HIGH/CRITICAL)
-        uses: aquasecurity/trivy-action@7c2007bcb556501da015201bcba5aa14069b74e2 # aquasecurity/trivy-action@v0.23.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'image'
           image-ref: '${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
@@ -81,7 +81,7 @@ jobs:
         if: always() && hashFiles('trivy-image.sarif') != ''
 
       - name: Generate SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@7c2007bcb556501da015201bcba5aa14069b74e2 # aquasecurity/trivy-action@v0.23.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'image'
           image-ref: '${{ env.IMAGE_NAME }}:sha-${{ github.sha }}'
